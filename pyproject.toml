@@ -18,6 +18,9 @@ dependencies = [
    "tomsutils@git+https://github.com/tomsilver/toms-utils.git",
    "pybullet",
    "scipy",
+   "pytest",
+   "pytest-pylint",
+   "mypy",
 ]
 
 [project.optional-dependencies]

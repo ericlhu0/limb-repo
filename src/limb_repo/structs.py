@@ -95,28 +95,26 @@ class LRState(JointState):
         obj.active_n_dofs = active_n_dofs
         obj.passive_n_dofs = passive_n_dofs
 
+        obj.active_kinematics_slice = slice(0, 3 * obj.active_n_dofs)
+        obj.active_pos_slice = slice(0, obj.active_n_dofs)
+        obj.active_vel_slice = slice(obj.active_n_dofs, 2 * obj.active_n_dofs)
+        obj.active_acc_slice = slice(2 * obj.active_n_dofs, 3 * obj.active_n_dofs)
+
+        obj.passive_kinematics_slice = slice(
+            3 * obj.active_n_dofs, 3 * obj.active_n_dofs + 3 * obj.passive_n_dofs
+        )
+        obj.passive_pos_slice = slice(
+            3 * obj.active_n_dofs, 3 * obj.active_n_dofs + obj.passive_n_dofs
+        )
+        obj.passive_vel_slice = slice(
+            3 * obj.active_n_dofs + obj.passive_n_dofs,
+            3 * obj.active_n_dofs + 2 * obj.passive_n_dofs,
+        )
+        obj.passive_acc_slice = slice(
+            3 * obj.active_n_dofs + 2 * obj.passive_n_dofs,
+            3 * obj.active_n_dofs + 3 * obj.passive_n_dofs,
+        )
         return obj
-
-    def __init__(self):  # pylint: disable=super-init-not-called
-        self.active_kinematics_slice = slice(0, 3 * self.active_n_dofs)
-        self.active_pos_slice = slice(0, self.active_n_dofs)
-        self.active_vel_slice = slice(self.active_n_dofs, 2 * self.active_n_dofs)
-        self.active_acc_slice = slice(2 * self.active_n_dofs, 3 * self.active_n_dofs)
-
-        self.passive_kinematics_slice = slice(
-            3 * self.active_n_dofs, 3 * self.active_n_dofs + 3 * self.passive_n_dofs
-        )
-        self.passive_pos_slice = slice(
-            3 * self.active_n_dofs, 3 * self.active_n_dofs + self.passive_n_dofs
-        )
-        self.passive_vel_slice = slice(
-            3 * self.active_n_dofs + self.passive_n_dofs,
-            3 * self.active_n_dofs + 2 * self.passive_n_dofs,
-        )
-        self.passive_acc_slice = slice(
-            3 * self.active_n_dofs + 2 * self.passive_n_dofs,
-            3 * self.active_n_dofs + 3 * self.passive_n_dofs,
-        )
 
     def __array_finalize__(self, obj):
         if obj is None:

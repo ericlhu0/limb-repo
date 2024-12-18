@@ -128,6 +128,16 @@ class LRPyBulletEnv(PyBulletEnv):
     def send_torques(self, body_id: int, torques: np.ndarray) -> None:
         """Send joint torques."""
         # to use torque control, velocity control must be disabled at every time step
+        prev_state = self.get_body_state(body_id)
+        if body_id == self.active_id:
+            self.prev_active_q = prev_state.q
+            self.prev_active_qd = prev_state.qd
+        elif body_id == self.passive_id:
+            self.prev_passive_q = prev_state.q
+            self.prev_passive_qd = prev_state.qd
+        else:
+            raise ValueError("Invalid body id")
+
         for j in pybullet_utils.get_good_joints(self.p, body_id):
             self.p.setJointMotorControl2(body_id, j, self.p.VELOCITY_CONTROL, force=0)
 
@@ -195,7 +205,7 @@ class LRPyBulletEnv(PyBulletEnv):
             raise ValueError("Invalid body id")
 
         return BodyState(np.concatenate([pos, vel, acc]))
-          
+
     def get_lr_state(self) -> LRState:
         """Get the states of active and passive."""
         active_kinematics = self.get_body_state(self.active_id)
