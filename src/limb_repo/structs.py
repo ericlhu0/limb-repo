@@ -64,12 +64,12 @@ class BodyState(JointState):
         self.acc_slice = getattr(obj, "acc_slice", None)
 
     @property
-    def pos(self):
+    def q(self):
         """Get position."""
         return self[self.pos_slice]
 
     @property
-    def vel(self):
+    def qd(self):
         """Get velocity."""
         return self[self.vel_slice]
 

@@ -150,20 +150,20 @@ class LRPyBulletEnv(PyBulletEnv):
         """
         prev_state = self.get_body_state(body_id)
         if body_id == self.active_id:
-            self.prev_active_q = prev_state.pos
-            self.prev_active_qd = prev_state.vel
+            self.prev_active_q = prev_state.q
+            self.prev_active_qd = prev_state.qd
         elif body_id == self.passive_id:
-            self.prev_passive_q = prev_state.pos
-            self.prev_passive_qd = prev_state.vel
+            self.prev_passive_q = prev_state.q
+            self.prev_passive_qd = prev_state.qd
         else:
             raise ValueError("Invalid body id")
 
         if not set_vel:
-            state[state.vel_slice] = (state.pos - prev_state.pos) / self.dt
+            state[state.vel_slice] = (state.q - prev_state.q) / self.dt
 
         for i, joint_id in enumerate(pybullet_utils.get_good_joints(self.p, body_id)):
             self.p.resetJointState(
-                body_id, joint_id, state.pos[i], targetVelocity=state.vel[i]
+                body_id, joint_id, state.q[i], targetVelocity=state.qd[i]
             )
 
     def set_lr_state(self, state: LRState, set_vel: bool = True) -> None:
@@ -195,6 +195,12 @@ class LRPyBulletEnv(PyBulletEnv):
             raise ValueError("Invalid body id")
 
         return BodyState(np.concatenate([pos, vel, acc]))
+          
+    def get_lr_state(self) -> LRState:
+        """Get the states of active and passive."""
+        active_kinematics = self.get_body_state(self.active_id)
+        passive_kinematics = self.get_body_state(self.passive_id)
+        return LRState(np.concatenate([active_kinematics, passive_kinematics]))
 
     def set_lr_constraint(self) -> None:
         """Create grasp constraint between active and passive ee."""

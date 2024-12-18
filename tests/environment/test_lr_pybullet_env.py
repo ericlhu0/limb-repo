@@ -23,7 +23,7 @@ def test_last_state_tracking():
     active_state = env.get_body_state(env.active_id)
     passive_state = env.get_body_state(env.passive_id)
 
-    print("active_state", active_state)
+    # print("active_state", active_state)
 
     # assert np.allclose(active_state, env.active_init_state)
     # assert np.allclose(passive_state, env.passive_init_state)
@@ -51,7 +51,7 @@ def test_last_state_tracking():
     assert np.allclose(env.get_body_state(env.active_id), new_active_state)
     assert np.allclose(env.get_body_state(env.passive_id), new_passive_state)
 
-    assert np.allclose(env.prev_active_q, active_state.pos)
-    assert np.allclose(env.prev_active_qd, active_state.vel)
-    assert np.allclose(env.prev_passive_q, passive_state.pos)
-    assert np.allclose(env.prev_passive_qd, passive_state.vel)
+    assert np.allclose(env.prev_active_q, active_state.q)
+    assert np.allclose(env.prev_active_qd, active_state.qd)
+    assert np.allclose(env.prev_passive_q, passive_state.q)
+    assert np.allclose(env.prev_passive_qd, passive_state.qd)
