@@ -15,7 +15,6 @@ from limb_repo.environments.base_env import BaseEnv
 class PyBulletConfig:
     """Configuration for a PyBullet environment."""
 
-    robot_ee_to_human_ee: np.ndarray
     use_gui: bool
     real_time_simulation: bool
     gravity: np.ndarray
@@ -42,6 +41,8 @@ class PyBulletEnv(BaseEnv):
             constraintSolverType=self.p.CONSTRAINT_SOLVER_LCP_DANTZIG,
             globalCFM=0.000001,
         )
+
+        self.dt = config.dt
 
     @staticmethod
     def parse_config(path_to_yaml: str) -> omegaconf.DictConfig:

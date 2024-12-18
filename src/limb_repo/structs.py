@@ -25,7 +25,10 @@ class Controller:
 
 
 # Limb Repo Structs
-class BodyState(State):
+JointState: TypeAlias = State
+
+
+class BodyState(JointState):
     """Single Body State.
 
     This is a subclass of np.ndarray, and allows access to kinematic
@@ -55,6 +58,10 @@ class BodyState(State):
         if obj is None:
             return
         self.n_dofs = getattr(obj, "n_dofs", None)
+        self.kinematics_slice = getattr(obj, "kinematics_slice", None)
+        self.pos_slice = getattr(obj, "pos_slice", None)
+        self.vel_slice = getattr(obj, "vel_slice", None)
+        self.acc_slice = getattr(obj, "acc_slice", None)
 
     @property
     def pos(self):
@@ -72,7 +79,7 @@ class BodyState(State):
         return self[self.acc_slice]
 
 
-class LRState(State):
+class LRState(JointState):
     """Limb Repositioning State.
 
     This is a subclass of np.ndarray, and allows access to active and
@@ -116,6 +123,14 @@ class LRState(State):
             return
         self.active_n_dofs = getattr(obj, "active_n_dofs", None)
         self.passive_n_dofs = getattr(obj, "passive_n_dofs", None)
+        self.active_kinematics_slice = getattr(obj, "active_kinematics_slice", None)
+        self.active_pos_slice = getattr(obj, "active_pos_slice", None)
+        self.active_vel_slice = getattr(obj, "active_vel_slice", None)
+        self.active_acc_slice = getattr(obj, "active_acc_slice", None)
+        self.passive_kinematics_slice = getattr(obj, "passive_kinematics_slice", None)
+        self.passive_pos_slice = getattr(obj, "passive_pos_slice", None)
+        self.passive_vel_slice = getattr(obj, "passive_vel_slice", None)
+        self.passive_acc_slice = getattr(obj, "passive_acc_slice", None)
 
     @property
     def active_kinematics(self):

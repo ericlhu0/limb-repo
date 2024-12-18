@@ -20,16 +20,16 @@ class LRPyBulletConfig:
     """Configuration for a Limb Repo PyBullet environment."""
 
     pybullet_config: PyBulletConfig
-    active_pose: Pose
-    active_config: np.ndarray
+    active_base_pose: Pose
+    active_q: np.ndarray
     active_urdf: str
-    passive_pose: Pose
-    passive_config: np.ndarray
+    passive_base_pose: Pose
+    passive_q: np.ndarray
     passive_urdf: str
     wheelchair_pose: Pose
     # wheelchair_config: np.ndarray
     wheelchair_urdf: str
-    robot_ee_to_human_ee: np.ndarray
+    active_ee_to_passive_ee: np.ndarray
 
 
 class LRPyBulletEnv(PyBulletEnv):
@@ -44,44 +44,52 @@ class LRPyBulletEnv(PyBulletEnv):
         ## Set initial values
         print("config active urdf", self.config.keys())
         self.active_urdf: str = self.config.active_urdf
-        self.active_init_pose = np.array(self.config.active_pose)
-        self.active_init_pos = np.array(self.active_init_pose[:3])
-        self.active_init_orn = R.from_euler("xyz", self.active_init_pose[3:])
-        self.active_init_config = np.array(self.config.active_config)
+        self.active_init_base_pose = np.array(self.config.active_base_pose)
+        self.active_init_base_pos = np.array(self.active_init_base_pose[:3])
+        self.active_init_base_orn = R.from_euler("xyz", self.active_init_base_pose[3:])
+        self.active_init_q = np.array(self.config.active_q)
         self.active_init_state = BodyState(
-            np.concatenate([self.active_init_config, np.zeros(6 + 6)])
+            np.concatenate([self.active_init_q, np.zeros(6 + 6)])
         )
-        self.active_n_dofs = len(self.active_init_config)
+        self.active_n_dofs = len(self.active_init_q)
         self.active_ee_link_id = self.active_n_dofs - 1
 
         self.passive_urdf: str = self.config.passive_urdf
-        self.passive_init_pose = np.array(self.config.passive_pose)
-        self.passive_init_pos = np.array(self.passive_init_pose[:3])
-        self.passive_init_orn = R.from_euler("xyz", self.passive_init_pose[3:])
-        self.passive_init_config = np.array(self.config.passive_config)
-        self.passive_init_state = BodyState(
-            np.concatenate([self.passive_init_config, np.zeros(6 + 6)])
+        self.passive_init_base_pose = np.array(self.config.passive_base_pose)
+        self.passive_init_base_pos = np.array(self.passive_init_base_pose[:3])
+        self.passive_init_base_orn = R.from_euler(
+            "xyz", self.passive_init_base_pose[3:]
         )
-        self.passive_n_dofs = len(self.passive_init_config)
+        self.passive_init_q = np.array(self.config.passive_q)
+        self.passive_init_state = BodyState(
+            np.concatenate([self.passive_init_q, np.zeros(6 + 6)])
+        )
+        self.passive_n_dofs = len(self.passive_init_q)
         self.passive_ee_link_id = self.passive_n_dofs - 1
+
+        self.prev_active_q = self.active_init_q
+        self.prev_passive_q = self.passive_init_q
+        self.prev_active_qd = np.zeros(6)
+        self.prev_passive_qd = np.zeros(6)
 
         ## Set useful rotations
         # rotates vector in active base frame to passive base frame: v_p = R @ v
-        self.robot_base_to_human_base = (
-            self.passive_init_orn.as_matrix().T @ self.active_init_orn.as_matrix()
+        self.active_base_to_passive_base = (
+            self.passive_init_base_orn.as_matrix().T
+            @ self.active_init_base_orn.as_matrix()
         )
-        self.robot_base_to_human_base_twist = np.block(
+        self.active_base_to_passive_base_twist = np.block(
             [
-                [self.robot_base_to_human_base, np.zeros((3, 3))],
-                [np.zeros((3, 3)), self.robot_base_to_human_base],
+                [self.active_base_to_passive_base, np.zeros((3, 3))],
+                [np.zeros((3, 3)), self.active_base_to_passive_base],
             ]
         )
-        # rotates active ee into passive ee, both in world frame: h_ee = R * r_ee
-        self.robot_ee_to_human_ee = self.config.robot_ee_to_human_ee
-        self.robot_ee_to_human_ee_twist = np.block(
+        # rotates active ee into passive ee, both in world frame: p_ee = R * a_ee
+        self.active_ee_to_passive_ee = self.config.active_ee_to_passive_ee
+        self.active_ee_to_passive_ee_twist = np.block(
             [
-                [self.robot_ee_to_human_ee, np.zeros((3, 3))],
-                [np.zeros((3, 3)), self.robot_ee_to_human_ee],
+                [self.active_ee_to_passive_ee, np.zeros((3, 3))],
+                [np.zeros((3, 3)), self.active_ee_to_passive_ee],
             ]
         )
 
@@ -91,22 +99,27 @@ class LRPyBulletEnv(PyBulletEnv):
         ## Load bodies into pybullet sim
         self.active_id = self.p.loadURDF(
             self.active_urdf,
-            self.active_init_pos,
-            self.active_init_orn.as_quat(),
+            self.active_init_base_pos,
+            self.active_init_base_orn.as_quat(),
             useFixedBase=True,
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
 
         self.passive_id = self.p.loadURDF(
             self.passive_urdf,
-            self.passive_init_pos,
-            self.passive_init_orn.as_quat(),
+            self.passive_init_base_pos,
+            self.passive_init_base_orn.as_quat(),
             useFixedBase=True,
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
 
         # Configure settings for sim bodies
         self.configure_body_settings()
+
+        # Set initial states for active and passive
+        for _ in range(3):  # doing it 3 times sets vel and acc to 0
+            self.set_body_state(self.active_id, self.active_init_state)
+            self.set_body_state(self.passive_id, self.passive_init_state)
 
     def step(self) -> None:
         """Step the environment."""
@@ -126,17 +139,62 @@ class LRPyBulletEnv(PyBulletEnv):
             forces=torques,
         )
 
-    def set_body_state(self, body_id: int, state: BodyState) -> None:
-        """Set the states of active or passive."""
+    def set_body_state(
+        self, body_id: int, state: BodyState, set_vel: bool = True
+    ) -> None:
+        """Set the states of active or passive using pos & vel from the state
+        argument.
+
+        If set_vel is False, only set pos, and vel is calculated using
+        the last pos.
+        """
+        prev_state = self.get_body_state(body_id)
+        if body_id == self.active_id:
+            self.prev_active_q = prev_state.pos
+            self.prev_active_qd = prev_state.vel
+        elif body_id == self.passive_id:
+            self.prev_passive_q = prev_state.pos
+            self.prev_passive_qd = prev_state.vel
+        else:
+            raise ValueError("Invalid body id")
+
+        if not set_vel:
+            state[state.vel_slice] = (state.pos - prev_state.pos) / self.dt
+
         for i, joint_id in enumerate(pybullet_utils.get_good_joints(self.p, body_id)):
             self.p.resetJointState(
-                body_id, joint_id, (state.pos)[i], targetVelocity=state.vel[i]
+                body_id, joint_id, state.pos[i], targetVelocity=state.vel[i]
             )
 
-    def set_lr_state(self, state: LRState) -> None:
-        """Set the states of active and passive."""
-        self.set_body_state(state.active_kinematics, self.active_id)
-        self.set_body_state(state.passive_kinematics, self.passive_id)
+    def set_lr_state(self, state: LRState, set_vel: bool = True) -> None:
+        """Set the states of active and passive using pos & vel from the state
+        argument.
+
+        If set_vel is False, only set pos, and vel is calculated using
+        the last pos.
+        """
+        self.set_body_state(state.active_kinematics, self.active_id, set_vel)
+        self.set_body_state(state.passive_kinematics, self.passive_id, set_vel)
+
+    def get_body_state(self, body_id: int) -> BodyState:
+        """Get the states of active or passive."""
+        pos = np.array(
+            [
+                self.p.getJointState(body_id, i)[0]
+                for i in pybullet_utils.get_good_joints(self.p, body_id)
+            ]
+        )
+
+        if body_id == self.active_id:
+            vel = (pos - self.prev_active_q) / self.dt
+            acc = (vel - self.prev_active_qd) / self.dt
+        elif body_id == self.passive_id:
+            vel = (pos - self.prev_passive_q) / self.dt
+            acc = (vel - self.prev_passive_qd) / self.dt
+        else:
+            raise ValueError("Invalid body id")
+
+        return BodyState(np.concatenate([pos, vel, acc]))
 
     def set_lr_constraint(self) -> None:
         """Create grasp constraint between active and passive ee."""
@@ -150,70 +208,48 @@ class LRPyBulletEnv(PyBulletEnv):
             [0, 0, 0],
             [0, 0, 0],
             [0, 0, 0, 1],
-            R.from_matrix(self.robot_ee_to_human_ee).as_quat(),
+            R.from_matrix(self.active_ee_to_passive_ee).as_quat(),
         )
 
     def configure_body_settings(self) -> None:
         """Configure settings for sim bodies."""
         # remove friction terms as well contact stiffness and damping
-        for i in range(self.p.getNumJoints(self.passive_id)):
-            self.p.changeDynamics(
-                self.passive_id,
-                i,
-                jointDamping=0.0,
-                anisotropicFriction=0.0,
-                maxJointVelocity=5000,
-                linearDamping=0.0,
-                angularDamping=0.0,
-                lateralFriction=0.0,
-                spinningFriction=0.0,
-                rollingFriction=0.0,
-                contactStiffness=0.0,
-                contactDamping=0.0,
-            )  # , jointLowerLimit=-6.283185 * 500, jointUpperLimit=6.283185 * 500)
-        for i in range(self.p.getNumJoints(self.active_id)):
-            self.p.changeDynamics(
-                self.active_id,
-                i,
-                jointDamping=0.0,
-                anisotropicFriction=0.0,
-                maxJointVelocity=5000,
-                linearDamping=0.0,
-                angularDamping=0.0,
-                lateralFriction=0.0,
-                spinningFriction=0.0,
-                rollingFriction=0.0,
-                contactStiffness=0.0,
-                contactDamping=0.0,
-            )  # , jointLowerLimit=-6.283185 * 200, jointUpperLimit=6.283185 * 200)
 
-        # remove collision for both robot and human arms
-        group = 0
-        mask = 0
-        for linkIndex in range(self.p.getNumJoints(self.passive_id)):
-            self.p.setCollisionFilterGroupMask(self.passive_id, linkIndex, group, mask)
-        for linkIndex in range(self.p.getNumJoints(self.active_id)):
-            self.p.setCollisionFilterGroupMask(self.active_id, linkIndex, group, mask)
+        for body_id in [self.active_id, self.passive_id]:
+            for i in range(self.p.getNumJoints(self.passive_id)):
+                self.p.changeDynamics(
+                    body_id,
+                    i,
+                    jointDamping=0.0,
+                    anisotropicFriction=0.0,
+                    maxJointVelocity=5000,
+                    linearDamping=0.0,
+                    angularDamping=0.0,
+                    lateralFriction=0.0,
+                    spinningFriction=0.0,
+                    rollingFriction=0.0,
+                    contactStiffness=0.0,
+                    contactDamping=0.0,
+                )  # , jointLowerLimit=-6.283185 * 500, jointUpperLimit=6.283185 * 500)
 
-        # apply velocity control to panda arm to make it stationary
-        for i in range(self.active_n_dofs):
-            self.p.setJointMotorControl2(
-                self.active_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
-            )
-        for i in range(self.passive_n_dofs):
-            self.p.setJointMotorControl2(
-                self.passive_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
-            )
+            # remove collision for both robot and human arms
+            group = 0
+            mask = 0
+            for linkIndex in range(self.p.getNumJoints(self.passive_id)):
+                self.p.setCollisionFilterGroupMask(body_id, linkIndex, group, mask)
 
-        for i in range(1000):
-            self.p.stepSimulation()
+            # apply velocity control to panda arm to make it stationary
+            for i in range(self.active_n_dofs):
+                self.p.setJointMotorControl2(
+                    body_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
+                )
 
-        # enable force torque
-        for joint in range(self.p.getNumJoints(self.active_id)):
-            self.p.enableJointForceTorqueSensor(self.active_id, joint, 1)
+            for i in range(1000):
+                self.p.stepSimulation()
 
-        for joint in range(self.p.getNumJoints(self.passive_id)):
-            self.p.enableJointForceTorqueSensor(self.passive_id, joint, 1)
+            # enable force torque
+            for joint in range(self.p.getNumJoints(body_id)):
+                self.p.enableJointForceTorqueSensor(body_id, joint, 1)
 
     @staticmethod
     def parse_config(path_to_yaml: str) -> omegaconf.DictConfig:
