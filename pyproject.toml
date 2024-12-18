@@ -17,10 +17,7 @@ dependencies = [
    "omegaconf",
    "tomsutils@git+https://github.com/tomsilver/toms-utils.git",
    "pybullet",
-   "scipy",
-   "pytest",
-   "pytest-pylint",
-   "mypy",
+   "scipy"
 ]
 
 [project.optional-dependencies]

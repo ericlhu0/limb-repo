@@ -74,7 +74,7 @@ class BodyState(JointState):
         return self[self.vel_slice]
 
     @property
-    def acc(self):
+    def qdd(self):
         """Get acceleration."""
         return self[self.acc_slice]
 
@@ -96,21 +96,21 @@ class LRState(JointState):
         obj.passive_n_dofs = passive_n_dofs
 
         obj.active_kinematics_slice = slice(0, 3 * obj.active_n_dofs)
-        obj.active_pos_slice = slice(0, obj.active_n_dofs)
-        obj.active_vel_slice = slice(obj.active_n_dofs, 2 * obj.active_n_dofs)
-        obj.active_acc_slice = slice(2 * obj.active_n_dofs, 3 * obj.active_n_dofs)
+        obj.active_q_slice = slice(0, obj.active_n_dofs)
+        obj.active_qd_slice = slice(obj.active_n_dofs, 2 * obj.active_n_dofs)
+        obj.active_qdd_slice = slice(2 * obj.active_n_dofs, 3 * obj.active_n_dofs)
 
         obj.passive_kinematics_slice = slice(
             3 * obj.active_n_dofs, 3 * obj.active_n_dofs + 3 * obj.passive_n_dofs
         )
-        obj.passive_pos_slice = slice(
+        obj.passive_q_slice = slice(
             3 * obj.active_n_dofs, 3 * obj.active_n_dofs + obj.passive_n_dofs
         )
-        obj.passive_vel_slice = slice(
+        obj.passive_qd_slice = slice(
             3 * obj.active_n_dofs + obj.passive_n_dofs,
             3 * obj.active_n_dofs + 2 * obj.passive_n_dofs,
         )
-        obj.passive_acc_slice = slice(
+        obj.passive_qdd_slice = slice(
             3 * obj.active_n_dofs + 2 * obj.passive_n_dofs,
             3 * obj.active_n_dofs + 3 * obj.passive_n_dofs,
         )
@@ -122,13 +122,13 @@ class LRState(JointState):
         self.active_n_dofs = getattr(obj, "active_n_dofs", None)
         self.passive_n_dofs = getattr(obj, "passive_n_dofs", None)
         self.active_kinematics_slice = getattr(obj, "active_kinematics_slice", None)
-        self.active_pos_slice = getattr(obj, "active_pos_slice", None)
-        self.active_vel_slice = getattr(obj, "active_vel_slice", None)
-        self.active_acc_slice = getattr(obj, "active_acc_slice", None)
+        self.active_q_slice = getattr(obj, "active_q_slice", None)
+        self.active_qd_slice = getattr(obj, "active_qd_slice", None)
+        self.active_qdd_slice = getattr(obj, "active_qdd_slice", None)
         self.passive_kinematics_slice = getattr(obj, "passive_kinematics_slice", None)
-        self.passive_pos_slice = getattr(obj, "passive_pos_slice", None)
-        self.passive_vel_slice = getattr(obj, "passive_vel_slice", None)
-        self.passive_acc_slice = getattr(obj, "passive_acc_slice", None)
+        self.passive_q_slice = getattr(obj, "passive_q_slice", None)
+        self.passive_qd_slice = getattr(obj, "passive_qd_slice", None)
+        self.passive_qdd_slice = getattr(obj, "passive_qdd_slice", None)
 
     @property
     def active_kinematics(self):
@@ -136,19 +136,19 @@ class LRState(JointState):
         return self[self.active_kinematics_slice]
 
     @property
-    def active_pos(self):
+    def active_q(self):
         """Get active position."""
-        return self[self.active_pos_slice]
+        return self[self.active_q_slice]
 
     @property
-    def active_vel(self):
+    def active_qd(self):
         """Get active velocity."""
-        return self[self.active_vel_slice]
+        return self[self.active_qd_slice]
 
     @property
-    def active_acc(self):
+    def active_qdd(self):
         """Get active acceleration."""
-        return self[self.active_acc_slice]
+        return self[self.active_qdd_slice]
 
     @property
     def passive_kinematics(self):
@@ -156,16 +156,16 @@ class LRState(JointState):
         return self[self.passive_kinematics_slice]
 
     @property
-    def passive_pos(self):
+    def passive_q(self):
         """Get passive position."""
-        return self[self.passive_pos_slice]
+        return self[self.passive_q_slice]
 
     @property
-    def passive_vel(self):
+    def passive_qd(self):
         """Get passive velocity."""
-        return self[self.passive_vel_slice]
+        return self[self.passive_qd_slice]
 
     @property
-    def passive_acc(self):
+    def passive_qdd(self):
         """Get passive acceleration."""
-        return self[self.passive_acc_slice]
+        return self[self.passive_qdd_slice]
