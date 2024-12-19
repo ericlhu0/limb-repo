@@ -148,7 +148,7 @@ class LRPyBulletEnv(PyBulletEnv):
         for j in pybullet_utils.get_good_joints(self.p, body_id):
             self.p.setJointMotorControl2(body_id, j, self.p.VELOCITY_CONTROL, force=0)
 
-        # apply original torque command to robot
+        # apply original torque command to active arm
         self.p.setJointMotorControlArray(
             body_id,
             pybullet_utils.get_good_joints(self.p, body_id),
@@ -296,7 +296,7 @@ class LRPyBulletEnv(PyBulletEnv):
                     contactDamping=0.0,
                 )  # , jointLowerLimit=-6.283185 * 500, jointUpperLimit=6.283185 * 500)
 
-            # remove collision for both robot and human arms
+            # remove collision for both arms
             group = 0
             mask = 0
             for linkIndex in range(self.p.getNumJoints(self.passive_id)):

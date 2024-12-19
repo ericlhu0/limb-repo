@@ -23,15 +23,15 @@ class MathDynamicsNoNVector(BaseDynamics):
         self.dt = self.env.dt
         self.current_state = self.env.get_lr_state()
 
-        # create pinnochio model for franka robot
-        self.robot_model = pin.buildModelFromUrdf(self.env.active_urdf)
-        self.robot_data = self.robot_model.createData()
-        self.robot_model.gravity.linear = np.zeros(3)
+        # create pinnochio model for active
+        self.active_model = pin.buildModelFromUrdf(self.env.active_urdf)
+        self.active_data = self.active_model.createData()
+        self.active_model.gravity.linear = np.zeros(3)
 
-        # create pinnochio model for human (uses 6DoF while pybullet uses 4DoF)
-        self.human_model = pin.buildModelFromUrdf(self.env.passive_urdf)
-        self.human_data = self.human_model.createData()
-        self.human_model.gravity.linear = np.zeros(3)
+        # create pinnochio model for passive (uses 6DoF while pybullet uses 4DoF)
+        self.passive_model = pin.buildModelFromUrdf(self.env.passive_urdf)
+        self.passive_data = self.passive_model.createData()
+        self.passive_model.gravity.linear = np.zeros(3)
 
     def step(self, torques: Action) -> LRState:
         """Step the dynamics model."""
@@ -52,16 +52,16 @@ class MathDynamicsNoNVector(BaseDynamics):
         )
         Jhinv = np.linalg.pinv(Jh)
 
-        Mr = self._calculate_mass_matrix(self.robot_model, self.robot_data, pos_a_i)
-        gr = self._calculate_gravity_vector(self.robot_model, self.robot_data, pos_a_i)
+        Mr = self._calculate_mass_matrix(self.active_model, self.active_data, pos_a_i)
+        gr = self._calculate_gravity_vector(self.active_model, self.active_data, pos_a_i)
         Cr = self._calculate_coriolis_matrix(
-            self.robot_model, self.robot_data, pos_a_i, vel_a_i
+            self.active_model, self.active_data, pos_a_i, vel_a_i
         )
 
-        Mh = self._calculate_mass_matrix(self.human_model, self.human_data, pos_p_i)
-        gh = self._calculate_gravity_vector(self.human_model, self.human_data, pos_p_i)
+        Mh = self._calculate_mass_matrix(self.passive_model, self.passive_data, pos_p_i)
+        gh = self._calculate_gravity_vector(self.passive_model, self.passive_data, pos_p_i)
         Ch = self._calculate_coriolis_matrix(
-            self.human_model, self.human_data, pos_p_i, vel_p_i
+            self.passive_model, self.passive_data, pos_p_i, vel_p_i
         )
 
         term1 = (
