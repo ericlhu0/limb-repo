@@ -14,8 +14,9 @@ class MathDynamicsWithNVector(BaseDynamics):
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
         """Initialize the dynamics model."""
-        config.pybullet_config.use_gui = False
+        # config.pybullet_config.use_gui = False
         self.env = LRPyBulletEnv(config=config)
+        print("past init")
         self.dt = self.env.dt
         self.active_ee_to_passive_ee_twist = self.env.active_ee_to_passive_ee_twist
 
@@ -28,15 +29,19 @@ class MathDynamicsWithNVector(BaseDynamics):
         vel_p_i = current_state.passive_qd
         R = self.active_ee_to_passive_ee_twist
 
-        Jr = self._calculate_jacobian(self.env.active_id, pos_a_i)
-        Jh = self._calculate_jacobian(self.env.passive_id, pos_p_i)
+        Jr = self._calculate_jacobian(
+            self.env.p, self.env.active_id, self.env.active_ee_link_id, pos_a_i
+        )
+        Jh = self._calculate_jacobian(
+            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, pos_p_i
+        )
         Jhinv = np.linalg.pinv(Jh)
 
-        Mr = self._calculate_mass_matrix(self.env.active_id, pos_a_i)
-        Mh = self._calculate_mass_matrix(self.env.passive_id, pos_p_i)
+        Mr = self._calculate_mass_matrix(self.env.p, self.env.active_id, pos_a_i)
+        Mh = self._calculate_mass_matrix(self.env.p, self.env.passive_id, pos_p_i)
 
-        Nr = self._calculate_N_vector(self.env.active_id, pos_a_i, vel_a_i)
-        Nh = self._calculate_N_vector(self.env.passive_id, pos_p_i, vel_p_i)
+        Nr = self._calculate_N_vector(self.env.p, self.env.active_id, pos_a_i, vel_a_i)
+        Nh = self._calculate_N_vector(self.env.p, self.env.passive_id, pos_p_i, vel_p_i)
 
         acc_a = np.linalg.pinv((Jhinv @ R @ -Jr).T @ Mh @ (Jhinv @ R @ Jr) - Mr) @ (
             (Jhinv @ R @ Jr).T
@@ -60,7 +65,7 @@ class MathDynamicsWithNVector(BaseDynamics):
         pos_p = pos_p_i + vel_p * self.dt
 
         self.env.set_lr_state(
-            LRState(np.concat([pos_a, vel_a, acc_a, pos_p, vel_p, acc_p]))
+            LRState(np.concatenate([pos_a, vel_a, acc_a, pos_p, vel_p, acc_p]))
         )
 
         return self.env.get_lr_state()
@@ -73,11 +78,19 @@ class MathDynamicsWithNVector(BaseDynamics):
     def _calculate_jacobian(
         p: bc.BulletClient, body_id: int, ee_link_id: int, joint_positions: JointState
     ) -> np.ndarray:
+        print(
+            body_id,
+            ee_link_id,
+            [0, 0, 0],
+            joint_positions.tolist(),
+            [0.0] * len(joint_positions),
+            [0.0] * len(joint_positions),
+        )
         jac_t, jac_r = p.calculateJacobian(
             body_id,
             ee_link_id,
             [0, 0, 0],
-            joint_positions,
+            joint_positions.tolist(),
             [0.0] * len(joint_positions),
             [0.0] * len(joint_positions),
         )
@@ -89,7 +102,7 @@ class MathDynamicsWithNVector(BaseDynamics):
     ) -> np.ndarray:
         mass_matrix = p.calculateMassMatrix(
             body_id,
-            joint_positions,
+            joint_positions.tolist(),
         )
         return np.array(mass_matrix)
 
@@ -103,8 +116,8 @@ class MathDynamicsWithNVector(BaseDynamics):
         joint_accel = [0.0] * len(joint_positions)
         n_vector = p.calculateInverseDynamics(
             body_id,
-            joint_positions,
-            joint_velocities,
+            joint_positions.tolist(),
+            joint_velocities.tolist(),
             joint_accel,
         )
         return np.array(n_vector)

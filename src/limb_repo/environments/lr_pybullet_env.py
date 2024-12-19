@@ -1,5 +1,6 @@
 """PyBullet environment for Limb Repositioning."""
 
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -117,9 +118,15 @@ class LRPyBulletEnv(PyBulletEnv):
         self.configure_body_settings()
 
         # Set initial states for active and passive
-        for _ in range(3):  # doing it 3 times sets vel and acc to 0
+        print("body state before setting init", self.get_body_state(self.active_id))
+
+        ##### for some reason I need to do this like 50 times for the GUI to react and
+        ##### set the bodies??? This is also substitutible with printing 1000000 times
+        ##### Internal states are updated after one call
+        for _ in range(50):  # doing it 3 times sets vel and acc to 0
             self.set_body_state(self.active_id, self.active_init_state)
             self.set_body_state(self.passive_id, self.passive_init_state)
+        print("body state after setting init", self.get_body_state(self.active_id))
 
     def step(self) -> None:
         """Step the environment."""
@@ -150,41 +157,53 @@ class LRPyBulletEnv(PyBulletEnv):
         )
 
     def set_body_state(
-        self, body_id: int, state: BodyState, set_vel: bool = True
+        self,
+        body_id: int,
+        state: BodyState,
+        set_vel: bool = True,
+        zero_acc: bool = False,
     ) -> None:
         """Set the states of active or passive using pos & vel from the state
         argument.
 
-        If set_vel is False, only set pos, and vel is calculated using
-        the last pos.
+        set_vel: if False, only set pos, and vel is calculated using the last pos
+
+        zero_acc: if True, acc is set to 0 by setting previous vel = curr vel
         """
         prev_state = self.get_body_state(body_id)
-        if body_id == self.active_id:
-            self.prev_active_q = prev_state.q
-            self.prev_active_qd = prev_state.qd
-        elif body_id == self.passive_id:
-            self.prev_passive_q = prev_state.q
-            self.prev_passive_qd = prev_state.qd
-        else:
-            raise ValueError("Invalid body id")
 
         if not set_vel:
             state[state.vel_slice] = (state.q - prev_state.q) / self.dt
+
+        if body_id == self.active_id:
+            self.prev_active_q = prev_state.q
+            self.prev_active_qd = prev_state.qd if not zero_acc else state.qd
+        elif body_id == self.passive_id:
+            self.prev_passive_q = prev_state.q
+            self.prev_passive_qd = prev_state.qd if not zero_acc else state.qd
+        else:
+            raise ValueError("Invalid body id")
 
         for i, joint_id in enumerate(pybullet_utils.get_good_joints(self.p, body_id)):
             self.p.resetJointState(
                 body_id, joint_id, state.q[i], targetVelocity=state.qd[i]
             )
 
-    def set_lr_state(self, state: LRState, set_vel: bool = True) -> None:
+    def set_lr_state(
+        self, state: LRState, set_vel: bool = True, zero_acc: bool = False
+    ) -> None:
         """Set the states of active and passive using pos & vel from the state
         argument.
 
         If set_vel is False, only set pos, and vel is calculated using
         the last pos.
         """
-        self.set_body_state(state.active_kinematics, self.active_id, set_vel)
-        self.set_body_state(state.passive_kinematics, self.passive_id, set_vel)
+        self.set_body_state(
+            self.active_id, BodyState(state.active_kinematics), set_vel, zero_acc
+        )
+        self.set_body_state(
+            self.passive_id, BodyState(state.passive_kinematics), set_vel, zero_acc
+        )
 
     def get_body_state(self, body_id: int) -> BodyState:
         """Get the states of active or passive."""

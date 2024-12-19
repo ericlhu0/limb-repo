@@ -125,16 +125,21 @@ if __name__ == "__main__":
     # LR_State Testing
     state = LR_State(np.arange(36), active_n_dofs=6, passive_n_dofs=6)
 
-    print(state.active_kinematics)
-    print(state.active_pos * 10)
-    print(type(state.active_pos))
-    print(type(state.passive_acc + 3))
-    print(type(state.passive_pos + np.array([1, 2, 3, 4, 5, 6])))
     # [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17]
     # [ 0 10 20 30 40 50]
     # <class '__main__.LR_State'>
     # <class '__main__.LR_State'>
     # <class '__main__.LR_State'>
+    print(state.active_kinematics)
+    print(state.active_pos * 10)
+    print(type(state.active_pos))
+    print(type(state.passive_acc + 3))
+    print(type(state.passive_pos + np.array([1, 2, 3, 4, 5, 6])))
+
+    state[state.passive_kinematics] = 0
+    # [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17  0  0  0  0  0  0
+    #   0  0  0  0  0  0  0  0  0  0  0  0]
+    print(state)
 
     # Subclassing Testing
     a = np.array([1, 2, 3])
