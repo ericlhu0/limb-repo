@@ -26,12 +26,12 @@ class MathDynamicsNoNVector(BaseDynamics):
         # create pinnochio model for active
         self.active_model = pin.buildModelFromUrdf(self.env.active_urdf)
         self.active_data = self.active_model.createData()
-        self.active_model.gravity.linear = config.pybullet_config.gravity
+        self.active_model.gravity.linear = np.array(config.pybullet_config.gravity)
 
         # create pinnochio model for passive (uses 6DoF while pybullet uses 4DoF)
         self.passive_model = pin.buildModelFromUrdf(self.env.passive_urdf)
         self.passive_data = self.passive_model.createData()
-        self.passive_model.gravity.linear = config.pybullet_config.gravity
+        self.passive_model.gravity.linear = np.array(config.pybullet_config.gravity)
 
     def step(self, torques: Action) -> LRState:
         """Step the dynamics model."""
