@@ -29,10 +29,10 @@ def check_ee_kinematics(
     if debug:
         if not position_check:
             print("fail position")
-            print(f"robot ee pos: {active_ee_pos}\nhuman ee pos: {passive_ee_pos}")
+            print(f"active ee pos: {active_ee_pos}\npassive ee pos: {passive_ee_pos}")
         if not velocity_check:
             print("fail velocity")
-            print(f"robot ee vel: {active_ee_vel}\nhuman ee vel: {passive_ee_vel}")
+            print(f"active ee vel: {active_ee_vel}\npassive ee vel: {passive_ee_vel}")
         if not orientaion_check:
             print("fail orientation")
             print(
