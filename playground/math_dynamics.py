@@ -17,9 +17,9 @@ for i in range(1000000):
     print(f"loop {i}")
     next_state = dynamics_model.step(action)
     lr_ee_state = dynamics_model.env.get_lr_ee_state()
-    print(
+    assert(
         check_ee_kinematics(
-            **vars(lr_ee_state),
+            lr_ee_state,
             active_ee_to_passive_ee=dynamics_model.env.active_ee_to_passive_ee,
         )
     )
