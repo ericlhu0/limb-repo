@@ -2,6 +2,7 @@
 
 import time
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
 import omegaconf
@@ -53,7 +54,6 @@ class LRPyBulletEnv(PyBulletEnv):
             np.concatenate([self.active_init_q, np.zeros(6 + 6)])
         )
         self.active_n_dofs = len(self.active_init_q)
-        self.active_ee_link_id = self.active_n_dofs - 1
 
         self.passive_urdf: str = self.config.passive_urdf
         self.passive_init_base_pose = np.array(self.config.passive_base_pose)
@@ -66,7 +66,6 @@ class LRPyBulletEnv(PyBulletEnv):
             np.concatenate([self.passive_init_q, np.zeros(6 + 6)])
         )
         self.passive_n_dofs = len(self.passive_init_q)
-        self.passive_ee_link_id = self.passive_n_dofs - 1
 
         self.prev_active_q = self.active_init_q
         self.prev_passive_q = self.passive_init_q
@@ -113,6 +112,9 @@ class LRPyBulletEnv(PyBulletEnv):
             useFixedBase=True,
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
+
+        self.active_ee_link_id = self.p.getNumJoints(self.active_id) - 1
+        self.passive_ee_link_id = self.p.getNumJoints(self.passive_id) - 1
 
         # Configure settings for sim bodies
         self.configure_body_settings()
@@ -230,6 +232,34 @@ class LRPyBulletEnv(PyBulletEnv):
         active_kinematics = self.get_body_state(self.active_id)
         passive_kinematics = self.get_body_state(self.passive_id)
         return LRState(np.concatenate([active_kinematics, passive_kinematics]))
+
+    def get_lr_ee_state(self) -> tuple[np.ndarray, ...]:
+        """Get the states of active and passive ee.
+
+        Returns: 
+        active_ee_pos, active_ee_vel, active_ee_orn, 
+        passive_ee_pos, passive_ee_vel, passive_ee_orn.
+        """
+        active_ee_state = self.p.getLinkState(self.active_id, self.active_ee_link_id, computeLinkVelocity = 1)
+        passive_ee_state = self.p.getLinkState(self.passive_id, self.passive_ee_link_id, computeLinkVelocity = 1)
+        active_ee_pos = active_ee_state[0]
+        active_ee_vel = active_ee_state[6]
+        active_ee_orn = R.from_quat(active_ee_state[1]).as_matrix()
+        passive_ee_pos = passive_ee_state[0]
+        passive_ee_vel = passive_ee_state[6]
+        passive_ee_orn = R.from_quat(passive_ee_state[1]).as_matrix()
+
+        print('idx 0', active_ee_state[0])
+        print('idx 4', active_ee_state[4])
+
+        return (
+            active_ee_pos,
+            active_ee_vel,
+            active_ee_orn,
+            passive_ee_pos,
+            passive_ee_vel,
+            passive_ee_orn,
+        )
 
     def set_lr_constraint(self) -> None:
         """Create grasp constraint between active and passive ee."""

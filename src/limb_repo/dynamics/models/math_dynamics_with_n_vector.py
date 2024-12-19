@@ -4,7 +4,7 @@ import numpy as np
 import omegaconf
 import pybullet_utils.bullet_client as bc
 
-from limb_repo.dynamics.base_dynamics import BaseDynamics
+from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.environments.lr_pybullet_env import LRPyBulletEnv
 from limb_repo.structs import Action, JointState, LRState
 
@@ -18,16 +18,16 @@ class MathDynamicsWithNVector(BaseDynamics):
         self.env = LRPyBulletEnv(config=config)
         print("past init")
         self.dt = self.env.dt
-        self.active_ee_to_passive_ee_twist = self.env.active_ee_to_passive_ee_twist
+        self.current_state = self.env.get_lr_state()
 
     def step(self, torques: Action) -> LRState:
         """Step the dynamics model."""
-        current_state = self.env.get_lr_state()
+        current_state = self.current_state
         pos_a_i = current_state.active_q
         vel_a_i = current_state.active_qd
         pos_p_i = current_state.passive_q
         vel_p_i = current_state.passive_qd
-        R = self.active_ee_to_passive_ee_twist
+        R = self.env.active_base_to_passive_base_twist
 
         Jr = self._calculate_jacobian(
             self.env.p, self.env.active_id, self.env.active_ee_link_id, pos_a_i
@@ -64,11 +64,24 @@ class MathDynamicsWithNVector(BaseDynamics):
         pos_a = pos_a_i + vel_a * self.dt
         pos_p = pos_p_i + vel_p * self.dt
 
-        self.env.set_lr_state(
-            LRState(np.concatenate([pos_a, vel_a, acc_a, pos_p, vel_p, acc_p]))
+        resulting_state = LRState(
+            np.concatenate([pos_a, vel_a, acc_a, pos_p, vel_p, acc_p])
         )
 
-        return self.env.get_lr_state()
+        print("with n vector")
+        print("rpos", pos_a)
+        print("rvel", vel_a)
+        print("racc", acc_a)
+        print("hpos", pos_p)
+        print("hvel", vel_p)
+        print("hacc", acc_p)
+        print("")
+
+        self.env.set_lr_state(resulting_state)
+
+        self.current_state = LRState(resulting_state)
+
+        return self.current_state
 
     def get_state(self) -> LRState:
         """Get the state of the dynamics model."""
@@ -78,14 +91,6 @@ class MathDynamicsWithNVector(BaseDynamics):
     def _calculate_jacobian(
         p: bc.BulletClient, body_id: int, ee_link_id: int, joint_positions: JointState
     ) -> np.ndarray:
-        print(
-            body_id,
-            ee_link_id,
-            [0, 0, 0],
-            joint_positions.tolist(),
-            [0.0] * len(joint_positions),
-            [0.0] * len(joint_positions),
-        )
         jac_t, jac_r = p.calculateJacobian(
             body_id,
             ee_link_id,
