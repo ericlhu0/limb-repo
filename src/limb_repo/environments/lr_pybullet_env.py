@@ -1,8 +1,6 @@
 """PyBullet environment for Limb Repositioning."""
 
-import time
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 import omegaconf
@@ -13,7 +11,7 @@ from limb_repo.environments.pybullet_env import (
     PyBulletConfig,
     PyBulletEnv,
 )
-from limb_repo.structs import BodyState, LRState, Pose
+from limb_repo.structs import BodyState, LREEState, LRState, Pose
 from limb_repo.utils import pybullet_utils
 
 
@@ -233,26 +231,27 @@ class LRPyBulletEnv(PyBulletEnv):
         passive_kinematics = self.get_body_state(self.passive_id)
         return LRState(np.concatenate([active_kinematics, passive_kinematics]))
 
-    def get_lr_ee_state(self) -> tuple[np.ndarray, ...]:
+    def get_lr_ee_state(self) -> LREEState:
         """Get the states of active and passive ee.
 
-        Returns: 
-        active_ee_pos, active_ee_vel, active_ee_orn, 
+        Returns:
+        active_ee_pos, active_ee_vel, active_ee_orn,
         passive_ee_pos, passive_ee_vel, passive_ee_orn.
         """
-        active_ee_state = self.p.getLinkState(self.active_id, self.active_ee_link_id, computeLinkVelocity = 1)
-        passive_ee_state = self.p.getLinkState(self.passive_id, self.passive_ee_link_id, computeLinkVelocity = 1)
-        active_ee_pos = active_ee_state[0]
+        active_ee_state = self.p.getLinkState(
+            self.active_id, self.active_ee_link_id, computeLinkVelocity=1
+        )
+        passive_ee_state = self.p.getLinkState(
+            self.passive_id, self.passive_ee_link_id, computeLinkVelocity=1
+        )
+        active_ee_pos = active_ee_state[0]  # [0] and [4] are the same
         active_ee_vel = active_ee_state[6]
         active_ee_orn = R.from_quat(active_ee_state[1]).as_matrix()
         passive_ee_pos = passive_ee_state[0]
         passive_ee_vel = passive_ee_state[6]
         passive_ee_orn = R.from_quat(passive_ee_state[1]).as_matrix()
 
-        print('idx 0', active_ee_state[0])
-        print('idx 4', active_ee_state[4])
-
-        return (
+        return LREEState(
             active_ee_pos,
             active_ee_vel,
             active_ee_orn,

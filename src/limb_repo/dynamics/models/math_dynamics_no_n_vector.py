@@ -1,3 +1,4 @@
+# pylint: disable=no-member
 """Dynamics Model Using Math Formulation With N Vector."""
 
 import numpy as np
@@ -36,14 +37,10 @@ class MathDynamicsNoNVector(BaseDynamics):
         """Step the dynamics model."""
         current_state = self.current_state
         pos_a_i = current_state.active_q
-        pos_a_i_pin = pinocchio_utils.joint_array_to_pinocchio(
-            pos_a_i, self.robot_model
-        )
+
         vel_a_i = current_state.active_qd
         pos_p_i = current_state.passive_q
-        pos_p_i_pin = pinocchio_utils.joint_array_to_pinocchio(
-            pos_p_i, self.human_model
-        )
+
         vel_p_i = current_state.passive_qd
         R = self.env.active_base_to_passive_base_twist
 
@@ -55,20 +52,16 @@ class MathDynamicsNoNVector(BaseDynamics):
         )
         Jhinv = np.linalg.pinv(Jh)
 
-        Mr = pin.crba(self.robot_model, self.robot_data, pos_a_i_pin)
-        gr = pin.computeGeneralizedGravity(
-            self.robot_model, self.robot_data, pos_a_i_pin
-        )
-        Cr = pin.computeCoriolisMatrix(
-            self.robot_model, self.robot_data, pos_a_i_pin, vel_a_i
+        Mr = self._calculate_mass_matrix(self.robot_model, self.robot_data, pos_a_i)
+        gr = self._calculate_gravity_vector(self.robot_model, self.robot_data, pos_a_i)
+        Cr = self._calculate_coriolis_matrix(
+            self.robot_model, self.robot_data, pos_a_i, vel_a_i
         )
 
-        Mh = pin.crba(self.human_model, self.human_data, pos_p_i_pin)
-        gh = pin.computeGeneralizedGravity(
-            self.human_model, self.human_data, pos_p_i_pin
-        )
-        Ch = pin.computeCoriolisMatrix(
-            self.human_model, self.human_data, pos_p_i_pin, vel_p_i
+        Mh = self._calculate_mass_matrix(self.human_model, self.human_data, pos_p_i)
+        gh = self._calculate_gravity_vector(self.human_model, self.human_data, pos_p_i)
+        Ch = self._calculate_coriolis_matrix(
+            self.human_model, self.human_data, pos_p_i, vel_p_i
         )
 
         term1 = (
@@ -140,26 +133,32 @@ class MathDynamicsNoNVector(BaseDynamics):
 
     @staticmethod
     def _calculate_mass_matrix(
-        p: bc.BulletClient, body_id: int, joint_positions: JointState
+        body_model: pin.Model, body_data: pin.Data, joint_positions: JointState
     ) -> np.ndarray:
-        mass_matrix = p.calculateMassMatrix(
-            body_id,
-            joint_positions.tolist(),
+        joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
+            joint_positions, body_model
         )
-        return np.array(mass_matrix)
+        return pin.crba(body_model, body_data, joint_positions_pin)
 
     @staticmethod
-    def _calculate_N_vector(
-        p: bc.BulletClient,
-        body_id: int,
+    def _calculate_gravity_vector(
+        body_model: pin.Model, body_data: pin.Data, joint_positions: JointState
+    ) -> np.ndarray:
+        joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
+            joint_positions, body_model
+        )
+        return pin.computeGeneralizedGravity(body_model, body_data, joint_positions_pin)
+
+    @staticmethod
+    def _calculate_coriolis_matrix(
+        body_model: pin.Model,
+        body_data: pin.Data,
         joint_positions: JointState,
         joint_velocities: JointState,
     ) -> np.ndarray:
-        joint_accel = [0.0] * len(joint_positions)
-        n_vector = p.calculateInverseDynamics(
-            body_id,
-            joint_positions.tolist(),
-            joint_velocities.tolist(),
-            joint_accel,
+        joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
+            joint_positions, body_model
         )
-        return np.array(n_vector)
+        return pin.computeCoriolisMatrix(
+            body_model, body_data, joint_positions_pin, joint_velocities
+        )

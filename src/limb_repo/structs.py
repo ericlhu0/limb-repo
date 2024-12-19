@@ -2,6 +2,7 @@
 # mypy: disable-error-code="attr-defined"
 """Data structures."""
 
+from dataclasses import dataclass
 from typing import TypeAlias
 
 import numpy as np
@@ -169,3 +170,15 @@ class LRState(JointState):
     def passive_qdd(self):
         """Get passive acceleration."""
         return self[self.passive_qdd_slice]
+
+
+@dataclass
+class LREEState:
+    """Limb Repositioning End Effector State."""
+
+    active_ee_pos: np.ndarray
+    active_ee_vel: np.ndarray
+    active_ee_orn: np.ndarray
+    passive_ee_pos: np.ndarray
+    passive_ee_vel: np.ndarray
+    passive_ee_orn: np.ndarray

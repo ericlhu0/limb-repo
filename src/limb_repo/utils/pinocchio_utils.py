@@ -1,7 +1,6 @@
 """Utilities for working with Pinocchio."""
 
 import numpy as np
-import pinocchio as pin
 
 
 def joint_array_to_pinocchio(q: np.ndarray, model):
