@@ -132,7 +132,7 @@ class LRPyBulletEnv(PyBulletEnv):
         """Step the environment."""
         self.p.stepSimulation()
 
-    def send_torques(self, body_id: int, torques: np.ndarray) -> None:
+    def send_torques(self, body_id: int, torques: np.ndarray) -> LRState:
         """Send joint torques."""
         # to use torque control, velocity control must be disabled at every time step
         prev_state = self.get_body_state(body_id)
@@ -155,6 +155,8 @@ class LRPyBulletEnv(PyBulletEnv):
             self.p.TORQUE_CONTROL,
             forces=torques,
         )
+
+        return self.get_lr_state()
 
     def set_body_state(
         self,

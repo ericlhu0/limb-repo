@@ -17,16 +17,11 @@ class PyBulletDynamics(BaseDynamics):
 
     def step(self, torques: Action) -> LRState:
         """Step the dynamics model."""
-        current_state = self.current_state
-        pos_a_i = current_state.active_q
-        vel_a_i = current_state.active_qd
-        pos_p_i = current_state.passive_q
-        vel_p_i = current_state.passive_qd
-
-        self.env.set_body_state(self.env.active_id, pos_a_i, vel_a_i, torques)
-        self.env.set_body_state(self.env.passive_id, pos_p_i, vel_p_i, torques)
-
-        next_state = self.env.get_lr_state()
-        self.current_state = next_state
-
-        return next_state
+        return self.env.send_torques(self.env.active_id, torques)
+    
+    def get_state(self) -> LRState:
+        """Get the state of the dynamics model."""
+        return self.env.get_lr_state()
+    
+    def set_state(self, state, set_vel = True, zero_acc = False):
+        return self.env.set_lr_state(state, set_vel, zero_acc)

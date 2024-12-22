@@ -18,3 +18,7 @@ class BaseDynamics(abc.ABC):
     @abc.abstractmethod
     def get_state(self) -> LRState:
         """Get the state of the dynamics model."""
+
+    @abc.abstractmethod
+    def set_state(self, state: LRState, set_vel: bool, zero_acc: bool) -> None:
+        """Set the state of the dynamics model."""
