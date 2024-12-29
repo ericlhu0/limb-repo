@@ -86,8 +86,10 @@ class MathDynamicsWithNVector(BaseDynamics):
     def get_state(self) -> LRState:
         """Get the state of the dynamics model."""
         return self.env.get_lr_state()
-    
-    def set_state(self, state: LRState, set_vel: bool = True, set_acc: bool = False) -> None:
+
+    def set_state(
+        self, state: LRState, set_vel: bool = True, set_acc: bool = False
+    ) -> None:
         """Set the state of the dynamics model."""
         self.env.set_lr_state(state, set_vel, set_acc)
 

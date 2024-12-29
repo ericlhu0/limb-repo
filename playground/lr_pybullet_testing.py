@@ -1,4 +1,4 @@
-"""Testing LR Pybullet Env."""
+"""Testing LR Pybullet Env and PyBullet Dynamics."""
 
 import numpy as np
 
@@ -21,7 +21,7 @@ new_active_state = BodyState(
 print(env.get_body_state(env.active_id))
 
 env.set_body_state(env.active_id, new_active_state, set_vel=True, zero_acc=True)
-env.set_body_state(env.passive_id, passive_state, set_vel=True, zero_acc=True)
+env.(env.passive_id, passive_state, set_vel=True, zero_acc=True)
 
 print(env.get_body_state(env.active_id))
 

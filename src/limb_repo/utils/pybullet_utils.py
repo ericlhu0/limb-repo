@@ -3,7 +3,7 @@
 import pybullet_utils.bullet_client as bc
 
 
-def get_good_joints(p: bc.BulletClient, body_id: int):
+def get_good_joints(p: bc.BulletClient, body_id: int) -> list[int]:
     """Get the joints that are not locked."""
     good_joints = []
     for i in range(p.getNumJoints(body_id)):

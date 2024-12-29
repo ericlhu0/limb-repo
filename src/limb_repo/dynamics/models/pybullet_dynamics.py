@@ -6,6 +6,7 @@ from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.environments.lr_pybullet_env import LRPyBulletEnv
 from limb_repo.structs import Action, LRState
 
+
 class PyBulletDynamics(BaseDynamics):
     """Using PyBullet as a Dynamics Model."""
 
@@ -15,13 +16,20 @@ class PyBulletDynamics(BaseDynamics):
         self.dt = self.env.dt
         self.current_state = self.env.get_lr_state()
 
+        # Set the grasp constraint in sim
+        self.env.set_grasp_constraint()
+
     def step(self, torques: Action) -> LRState:
         """Step the dynamics model."""
-        return self.env.send_torques(self.env.active_id, torques)
-    
+        # self.env.step()
+        # return self.env.get_lr_state()/
+        # return
+        return self.env.send_torques(torques)
+
     def get_state(self) -> LRState:
         """Get the state of the dynamics model."""
         return self.env.get_lr_state()
-    
-    def set_state(self, state, set_vel = True, zero_acc = False):
+
+    def set_state(self, state, set_vel=True, zero_acc=False):
+        """Set the state of the dynamics model."""
         return self.env.set_lr_state(state, set_vel, zero_acc)

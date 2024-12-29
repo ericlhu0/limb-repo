@@ -25,8 +25,8 @@ def test_last_state_tracking():
 
     # print("active_state", active_state)
 
-    # assert np.allclose(active_state, env.active_init_state)
-    # assert np.allclose(passive_state, env.passive_init_state)
+    assert np.allclose(active_state, env.active_init_state)
+    assert np.allclose(passive_state, env.passive_init_state)
 
     pos_diff = 1
 

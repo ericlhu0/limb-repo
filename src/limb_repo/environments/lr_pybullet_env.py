@@ -12,8 +12,9 @@ from limb_repo.environments.pybullet_env import (
     PyBulletEnv,
 )
 from limb_repo.structs import BodyState, LREEState, LRState, Pose
-from limb_repo.utils import pybullet_utils
+from limb_repo.utils import utils, pybullet_utils
 
+import time
 
 @dataclass
 class LRPyBulletConfig:
@@ -43,7 +44,8 @@ class LRPyBulletEnv(PyBulletEnv):
 
         ## Set initial values
         print("config active urdf", self.config.keys())
-        self.active_urdf: str = self.config.active_urdf
+        self.active_urdf = utils.to_abs_path(self.config.active_urdf)
+        print("active urdf", self.active_urdf)
         self.active_init_base_pose = np.array(self.config.active_base_pose)
         self.active_init_base_pos = np.array(self.active_init_base_pose[:3])
         self.active_init_base_orn = R.from_euler("xyz", self.active_init_base_pose[3:])
@@ -53,7 +55,7 @@ class LRPyBulletEnv(PyBulletEnv):
         )
         self.active_n_dofs = len(self.active_init_q)
 
-        self.passive_urdf: str = self.config.passive_urdf
+        self.passive_urdf = utils.to_abs_path(self.config.passive_urdf)
         self.passive_init_base_pose = np.array(self.config.passive_base_pose)
         self.passive_init_base_pos = np.array(self.passive_init_base_pose[:3])
         self.passive_init_base_orn = R.from_euler(
@@ -121,74 +123,88 @@ class LRPyBulletEnv(PyBulletEnv):
         print("body state before setting init", self.get_body_state(self.active_id))
 
         ##### for some reason I need to do this like 50 times for the GUI to react and
-        ##### set the bodies??? This is also substitutible with printing 1000000 times
+        ##### set the bodies??? This is also substitutable with printing 1000000 times
         ##### Internal states are updated after one call
         for _ in range(50):  # doing it 3 times sets vel and acc to 0
             self.set_body_state(self.active_id, self.active_init_state)
             self.set_body_state(self.passive_id, self.passive_init_state)
         print("body state after setting init", self.get_body_state(self.active_id))
+        print("straight from pybullet")
+        for i in pybullet_utils.get_good_joints(self.p, self.active_id):
+            print(self.p.getJointState(self.active_id, i))
+        # input()
 
     def step(self) -> None:
         """Step the environment."""
         self.p.stepSimulation()
+        print('active')
+        for i in pybullet_utils.get_good_joints(self.p, self.active_id):
+            print(self.p.getJointState(self.active_id, i))
+        print('passive')
+        for i in pybullet_utils.get_good_joints(self.p, self.passive_id):
+            print(self.p.getJointState(self.passive_id, i))
+        # input()
 
-    def send_torques(self, body_id: int, torques: np.ndarray) -> LRState:
+    def send_torques(self, torques: np.ndarray) -> LRState:
         """Send joint torques."""
-        # to use torque control, velocity control must be disabled at every time step
-        prev_state = self.get_body_state(body_id)
-        if body_id == self.active_id:
-            self.prev_active_q = prev_state.q
-            self.prev_active_qd = prev_state.qd
-        elif body_id == self.passive_id:
-            self.prev_passive_q = prev_state.q
-            self.prev_passive_qd = prev_state.qd
-        else:
-            raise ValueError("Invalid body id")
-
-        for j in pybullet_utils.get_good_joints(self.p, body_id):
-            self.p.setJointMotorControl2(body_id, j, self.p.VELOCITY_CONTROL, force=0)
+        curr_state = self.get_lr_state()
+        self.prev_active_q = curr_state.active_q
+        self.prev_active_qd = curr_state.active_qd
+        self.prev_passive_q = curr_state.passive_q
+        self.prev_passive_qd = curr_state.passive_qd
 
         # apply original torque command to active arm
         self.p.setJointMotorControlArray(
-            body_id,
-            pybullet_utils.get_good_joints(self.p, body_id),
+            self.active_id,
+            pybullet_utils.get_good_joints(self.p, self.active_id),
             self.p.TORQUE_CONTROL,
             forces=torques,
         )
+
+        self.step()
+        
+        # for i in range(5000):
+        #     print('torques', torques)
+        #     self.step()
+        # input("finished sending 5000 torques")
 
         return self.get_lr_state()
 
     def set_body_state(
         self,
         body_id: int,
-        state: BodyState,
+        goal_state: BodyState,
         set_vel: bool = True,
         zero_acc: bool = False,
     ) -> None:
-        """Set the states of active or passive using pos & vel from the state
+        """Set the states of active or passive using pos & vel from the goal_state
         argument.
 
         set_vel: if False, only set pos, and vel is calculated using the last pos
 
         zero_acc: if True, acc is set to 0 by setting previous vel = curr vel
         """
-        prev_state = self.get_body_state(body_id)
+        curr_state = self.get_body_state(body_id)
 
         if not set_vel:
-            state[state.vel_slice] = (state.q - prev_state.q) / self.dt
+            goal_state[goal_state.vel_slice] = (goal_state.q - curr_state.q) / self.dt
 
         if body_id == self.active_id:
-            self.prev_active_q = prev_state.q
-            self.prev_active_qd = prev_state.qd if not zero_acc else state.qd
+            self.prev_active_q = curr_state.q
+            self.prev_active_qd = (
+                curr_state.qd if not zero_acc else goal_state.qd
+            )
         elif body_id == self.passive_id:
-            self.prev_passive_q = prev_state.q
-            self.prev_passive_qd = prev_state.qd if not zero_acc else state.qd
+            self.prev_passive_q = curr_state.q
+            self.prev_passive_qd = (
+                curr_state.qd if not zero_acc else goal_state.qd
+            )
         else:
             raise ValueError("Invalid body id")
 
         for i, joint_id in enumerate(pybullet_utils.get_good_joints(self.p, body_id)):
             self.p.resetJointState(
-                body_id, joint_id, state.q[i], targetVelocity=state.qd[i]
+                body_id, joint_id, goal_state.q[i], targetVelocity=goal_state.qd[i]
             )
 
     def set_lr_state(
@@ -209,23 +225,28 @@ class LRPyBulletEnv(PyBulletEnv):
 
     def get_body_state(self, body_id: int) -> BodyState:
         """Get the states of active or passive."""
-        pos = np.array(
+        q = np.array(
             [
                 self.p.getJointState(body_id, i)[0]
                 for i in pybullet_utils.get_good_joints(self.p, body_id)
             ]
         )
 
+        qd = np.array(
+            [
+                self.p.getJointState(body_id, i)[1]
+                for i in pybullet_utils.get_good_joints(self.p, body_id)
+            ]
+        )
+
         if body_id == self.active_id:
-            vel = (pos - self.prev_active_q) / self.dt
-            acc = (vel - self.prev_active_qd) / self.dt
+            qdd = (qd - self.prev_active_qd) / self.dt
         elif body_id == self.passive_id:
-            vel = (pos - self.prev_passive_q) / self.dt
-            acc = (vel - self.prev_passive_qd) / self.dt
+            qdd = (qd - self.prev_passive_qd) / self.dt
         else:
             raise ValueError("Invalid body id")
 
-        return BodyState(np.concatenate([pos, vel, acc]))
+        return BodyState(np.concatenate([q, qd, qdd]))
 
     def get_lr_state(self) -> LRState:
         """Get the states of active and passive."""
@@ -262,8 +283,10 @@ class LRPyBulletEnv(PyBulletEnv):
             passive_ee_orn,
         )
 
-    def set_lr_constraint(self) -> None:
+    def set_grasp_constraint(self) -> None:
         """Create grasp constraint between active and passive ee."""
+        # self.stop_movement()
+
         self.cid = self.p.createConstraint(
             self.active_id,
             self.active_ee_link_id,
@@ -277,15 +300,18 @@ class LRPyBulletEnv(PyBulletEnv):
             R.from_matrix(self.active_ee_to_passive_ee).as_quat(),
         )
 
+        self.p.changeConstraint(self.cid, erp=0.9)
+
+        self.stop_movement()
+
     def configure_body_settings(self) -> None:
         """Configure settings for sim bodies."""
-        # remove friction terms as well contact stiffness and damping
-
         for body_id in [self.active_id, self.passive_id]:
-            for i in range(self.p.getNumJoints(self.passive_id)):
+            # remove friction terms as well contact stiffness and damping
+            for joint in range(self.p.getNumJoints(body_id)):
                 self.p.changeDynamics(
                     body_id,
-                    i,
+                    joint,
                     jointDamping=0.0,
                     anisotropicFriction=0.0,
                     maxJointVelocity=5000,
@@ -298,24 +324,62 @@ class LRPyBulletEnv(PyBulletEnv):
                     contactDamping=0.0,
                 )  # , jointLowerLimit=-6.283185 * 500, jointUpperLimit=6.283185 * 500)
 
-            # remove collision for both arms
-            group = 0
-            mask = 0
-            for linkIndex in range(self.p.getNumJoints(self.passive_id)):
-                self.p.setCollisionFilterGroupMask(body_id, linkIndex, group, mask)
+                # disable collisions
+                self.p.setCollisionFilterGroupMask(body_id, joint, 0, 0)
 
-            # apply velocity control to panda arm to make it stationary
-            for i in range(self.active_n_dofs):
+                # # apply velocity control to panda arm to make it stationary
+                # self.p.setJointMotorControl2(
+                #     body_id, joint, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
+                # )
+
+                # self.p.setJointMotorControl2(body_id, joint, self.p.TORQUE_CONTROL, force=0)
+
+                self.p.enableJointForceTorqueSensor(body_id, joint, 1)
+
+    def stop_movement(self) -> None:
+        """Stop all movement of the active and passive arms."""
+
+        for body_id in [self.active_id, self.passive_id]:
+            # remove friction terms as well contact stiffness and damping
+            for joint in range(self.p.getNumJoints(body_id)):
                 self.p.setJointMotorControl2(
-                    body_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
+                    body_id, joint, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
                 )
 
-            for i in range(1000):
-                self.p.stepSimulation()
+        for _ in range(1000):
+            self.p.stepSimulation()
 
-            # enable force torque
+        for body_id in [self.active_id, self.passive_id]:
+            # remove friction terms as well contact stiffness and damping
             for joint in range(self.p.getNumJoints(body_id)):
-                self.p.enableJointForceTorqueSensor(body_id, joint, 1)
+                self.p.setJointMotorControl2(
+                    body_id, joint, self.p.TORQUE_CONTROL, force=0
+                )
+
+        for _ in range(1000):
+            self.p.stepSimulation()
+            print("setting up2")
+
+        for body_id in [self.active_id, self.passive_id]:
+            # remove friction terms as well contact stiffness and damping
+            for joint in range(self.p.getNumJoints(body_id)):
+                self.p.setJointMotorControl2(
+                    body_id, joint, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
+                )
+
+        for _ in range(1000):
+            self.p.stepSimulation()
+            print("setting up3")
+
+        for body_id in [self.active_id, self.passive_id]:
+            for joint in range(self.p.getNumJoints(body_id)):
+                self.p.setJointMotorControl2(
+                    body_id, joint, self.p.TORQUE_CONTROL, force=0
+                )
+
+        for _ in range(1000):
+            self.p.stepSimulation()
+            print("setting up4")
 
     @staticmethod
     def parse_config(path_to_yaml: str) -> omegaconf.DictConfig:
