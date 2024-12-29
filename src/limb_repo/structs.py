@@ -1,6 +1,6 @@
-# pylint: disable=attribute-defined-outside-init
-# mypy: disable-error-code="attr-defined"
 """Data structures."""
+
+from __future__ import annotations
 
 from typing import TypeAlias
 
@@ -41,7 +41,8 @@ class BodyState(JointState):
     vel_slice: slice
     acc_slice: slice
 
-    def __new__(cls, input_array: np.ndarray, n_dofs: int = 6) -> "BodyState":
+    # pylint: disable=attribute-defined-outside-init
+    def __new__(cls, input_array: np.ndarray, n_dofs: int = 6) -> BodyState:
         assert len(input_array) == 3 * n_dofs
 
         obj = np.asarray(input_array).view(cls)
@@ -54,6 +55,7 @@ class BodyState(JointState):
 
         return obj
 
+    # pylint: disable=attribute-defined-outside-init
     def __array_finalize__(self, obj):
         if obj is None:
             return
@@ -79,16 +81,17 @@ class BodyState(JointState):
         return self[self.acc_slice]
 
 
-class LRState(JointState):
+class LimbRepoState(JointState):
     """Limb Repositioning State.
 
     This is a subclass of np.ndarray, and allows access to active and
     passive kinematic states as properties.
     """
 
+    # pylint: disable=attribute-defined-outside-init
     def __new__(
         cls, input_array: np.ndarray, active_n_dofs: int = 6, passive_n_dofs: int = 6
-    ) -> "LRState":
+    ) -> LimbRepoState:
         assert len(input_array) == 3 * (active_n_dofs + passive_n_dofs)
 
         obj = np.asarray(input_array).view(cls)
@@ -116,6 +119,7 @@ class LRState(JointState):
         )
         return obj
 
+    # pylint: disable=attribute-defined-outside-init
     def __array_finalize__(self, obj):
         if obj is None:
             return

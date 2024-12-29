@@ -4,19 +4,18 @@ from dataclasses import dataclass
 
 import numpy as np
 import omegaconf
-from omegaconf import OmegaConf
 from scipy.spatial.transform import Rotation as R
 
 from limb_repo.environments.pybullet_env import (
     PyBulletConfig,
     PyBulletEnv,
 )
-from limb_repo.structs import BodyState, LRState, Pose
+from limb_repo.structs import BodyState, LimbRepoState, Pose
 from limb_repo.utils import pybullet_utils
 
 
 @dataclass
-class LRPyBulletConfig:
+class LimbRepoPyBulletConfig:
     """Configuration for a Limb Repo PyBullet environment."""
 
     pybullet_config: PyBulletConfig
@@ -32,7 +31,7 @@ class LRPyBulletConfig:
     active_ee_to_passive_ee: np.ndarray
 
 
-class LRPyBulletEnv(PyBulletEnv):
+class LimbRepoPyBulletEnv(PyBulletEnv):
     """Pybullet environment for Limb Repositioning."""
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
@@ -43,72 +42,74 @@ class LRPyBulletEnv(PyBulletEnv):
 
         ## Set initial values
         print("config active urdf", self.config.keys())
-        self.active_urdf: str = self.config.active_urdf
-        self.active_init_base_pose = np.array(self.config.active_base_pose)
-        self.active_init_base_pos = np.array(self.active_init_base_pose[:3])
-        self.active_init_base_orn = R.from_euler("xyz", self.active_init_base_pose[3:])
-        self.active_init_q = np.array(self.config.active_q)
-        self.active_init_state = BodyState(
-            np.concatenate([self.active_init_q, np.zeros(6 + 6)])
+        self._active_urdf: str = self.config.active_urdf
+        self._active_init_base_pose = np.array(self.config.active_base_pose)
+        self._active_init_base_pos = np.array(self._active_init_base_pose[:3])
+        self._active_init_base_orn = R.from_euler(
+            "xyz", self._active_init_base_pose[3:]
         )
-        self.active_n_dofs = len(self.active_init_q)
-        self.active_ee_link_id = self.active_n_dofs - 1
+        self._active_init_q = np.array(self.config.active_q)
+        self._active_init_state = BodyState(
+            np.concatenate([self._active_init_q, np.zeros(6 + 6)])
+        )
+        self._active_n_dofs = len(self._active_init_q)
+        self._active_ee_link_id = self._active_n_dofs - 1
 
-        self.passive_urdf: str = self.config.passive_urdf
-        self.passive_init_base_pose = np.array(self.config.passive_base_pose)
-        self.passive_init_base_pos = np.array(self.passive_init_base_pose[:3])
-        self.passive_init_base_orn = R.from_euler(
-            "xyz", self.passive_init_base_pose[3:]
+        self._passive_urdf: str = self.config.passive_urdf
+        self._passive_init_base_pose = np.array(self.config.passive_base_pose)
+        self._passive_init_base_pos = np.array(self._passive_init_base_pose[:3])
+        self._passive_init_base_orn = R.from_euler(
+            "xyz", self._passive_init_base_pose[3:]
         )
-        self.passive_init_q = np.array(self.config.passive_q)
-        self.passive_init_state = BodyState(
-            np.concatenate([self.passive_init_q, np.zeros(6 + 6)])
+        self._passive_init_q = np.array(self.config.passive_q)
+        self._passive_init_state = BodyState(
+            np.concatenate([self._passive_init_q, np.zeros(6 + 6)])
         )
-        self.passive_n_dofs = len(self.passive_init_q)
-        self.passive_ee_link_id = self.passive_n_dofs - 1
+        self._passive_n_dofs = len(self._passive_init_q)
+        self._passive_ee_link_id = self._passive_n_dofs - 1
 
-        self.prev_active_q = self.active_init_q
-        self.prev_passive_q = self.passive_init_q
-        self.prev_active_qd = np.zeros(6)
-        self.prev_passive_qd = np.zeros(6)
+        self._prev_active_q = self._active_init_q
+        self._prev_passive_q = self._passive_init_q
+        self._prev_active_qd = np.zeros(6)
+        self._prev_passive_qd = np.zeros(6)
 
         ## Set useful rotations
         # rotates vector in active base frame to passive base frame: v_p = R @ v
-        self.active_base_to_passive_base = (
-            self.passive_init_base_orn.as_matrix().T
-            @ self.active_init_base_orn.as_matrix()
+        self._active_base_to_passive_base = (
+            self._passive_init_base_orn.as_matrix().T
+            @ self._active_init_base_orn.as_matrix()
         )
-        self.active_base_to_passive_base_twist = np.block(
+        self._active_base_to_passive_base_twist = np.block(
             [
-                [self.active_base_to_passive_base, np.zeros((3, 3))],
-                [np.zeros((3, 3)), self.active_base_to_passive_base],
+                [self._active_base_to_passive_base, np.zeros((3, 3))],
+                [np.zeros((3, 3)), self._active_base_to_passive_base],
             ]
         )
         # rotates active ee into passive ee, both in world frame: p_ee = R * a_ee
-        self.active_ee_to_passive_ee = self.config.active_ee_to_passive_ee
-        self.active_ee_to_passive_ee_twist = np.block(
+        self._active_ee_to_passive_ee = self.config.active_ee_to_passive_ee
+        self._active_ee_to_passive_ee_twist = np.block(
             [
-                [self.active_ee_to_passive_ee, np.zeros((3, 3))],
-                [np.zeros((3, 3)), self.active_ee_to_passive_ee],
+                [self._active_ee_to_passive_ee, np.zeros((3, 3))],
+                [np.zeros((3, 3)), self._active_ee_to_passive_ee],
             ]
         )
 
         # set constraint id to none because it hasn't been created yet
-        self.cid = None
+        self._cid = None
 
         ## Load bodies into pybullet sim
         self.active_id = self.p.loadURDF(
-            self.active_urdf,
-            self.active_init_base_pos,
-            self.active_init_base_orn.as_quat(),
+            self._active_urdf,
+            self._active_init_base_pos,
+            self._active_init_base_orn.as_quat(),
             useFixedBase=True,
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
 
         self.passive_id = self.p.loadURDF(
-            self.passive_urdf,
-            self.passive_init_base_pos,
-            self.passive_init_base_orn.as_quat(),
+            self._passive_urdf,
+            self._passive_init_base_pos,
+            self._passive_init_base_orn.as_quat(),
             useFixedBase=True,
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
@@ -118,8 +119,8 @@ class LRPyBulletEnv(PyBulletEnv):
 
         # Set initial states for active and passive
         for _ in range(3):  # doing it 3 times sets vel and acc to 0
-            self.set_body_state(self.active_id, self.active_init_state)
-            self.set_body_state(self.passive_id, self.passive_init_state)
+            self.set_body_state(self.active_id, self._active_init_state)
+            self.set_body_state(self.passive_id, self._passive_init_state)
 
     def step(self) -> None:
         """Step the environment."""
@@ -130,11 +131,11 @@ class LRPyBulletEnv(PyBulletEnv):
         # to use torque control, velocity control must be disabled at every time step
         prev_state = self.get_body_state(body_id)
         if body_id == self.active_id:
-            self.prev_active_q = prev_state.q
-            self.prev_active_qd = prev_state.qd
+            self._prev_active_q = prev_state.q
+            self._prev_active_qd = prev_state.qd
         elif body_id == self.passive_id:
-            self.prev_passive_q = prev_state.q
-            self.prev_passive_qd = prev_state.qd
+            self._prev_passive_q = prev_state.q
+            self._prev_passive_qd = prev_state.qd
         else:
             raise ValueError("Invalid body id")
 
@@ -160,11 +161,11 @@ class LRPyBulletEnv(PyBulletEnv):
         """
         prev_state = self.get_body_state(body_id)
         if body_id == self.active_id:
-            self.prev_active_q = prev_state.q
-            self.prev_active_qd = prev_state.qd
+            self._prev_active_q = prev_state.q
+            self._prev_active_qd = prev_state.qd
         elif body_id == self.passive_id:
-            self.prev_passive_q = prev_state.q
-            self.prev_passive_qd = prev_state.qd
+            self._prev_passive_q = prev_state.q
+            self._prev_passive_qd = prev_state.qd
         else:
             raise ValueError("Invalid body id")
 
@@ -176,7 +177,7 @@ class LRPyBulletEnv(PyBulletEnv):
                 body_id, joint_id, state.q[i], targetVelocity=state.qd[i]
             )
 
-    def set_lr_state(self, state: LRState, set_vel: bool = True) -> None:
+    def set_limb_repo_state(self, state: LimbRepoState, set_vel: bool = True) -> None:
         """Set the states of active and passive using pos & vel from the state
         argument.
 
@@ -196,35 +197,35 @@ class LRPyBulletEnv(PyBulletEnv):
         )
 
         if body_id == self.active_id:
-            vel = (pos - self.prev_active_q) / self.dt
-            acc = (vel - self.prev_active_qd) / self.dt
+            vel = (pos - self._prev_active_q) / self.dt
+            acc = (vel - self._prev_active_qd) / self.dt
         elif body_id == self.passive_id:
-            vel = (pos - self.prev_passive_q) / self.dt
-            acc = (vel - self.prev_passive_qd) / self.dt
+            vel = (pos - self._prev_passive_q) / self.dt
+            acc = (vel - self._prev_passive_qd) / self.dt
         else:
             raise ValueError("Invalid body id")
 
         return BodyState(np.concatenate([pos, vel, acc]))
 
-    def get_lr_state(self) -> LRState:
+    def get_limb_repo_state(self) -> LimbRepoState:
         """Get the states of active and passive."""
         active_kinematics = self.get_body_state(self.active_id)
         passive_kinematics = self.get_body_state(self.passive_id)
-        return LRState(np.concatenate([active_kinematics, passive_kinematics]))
+        return LimbRepoState(np.concatenate([active_kinematics, passive_kinematics]))
 
-    def set_lr_constraint(self) -> None:
+    def set_limb_repo_constraint(self) -> None:
         """Create grasp constraint between active and passive ee."""
-        self.cid = self.p.createConstraint(
+        self._cid = self.p.createConstraint(
             self.active_id,
-            self.active_ee_link_id,
+            self._active_ee_link_id,
             self.passive_id,
-            self.passive_ee_link_id,
+            self._passive_ee_link_id,
             self.p.JOINT_FIXED,
             [0, 0, 0],
             [0, 0, 0],
             [0, 0, 0],
             [0, 0, 0, 1],
-            R.from_matrix(self.active_ee_to_passive_ee).as_quat(),
+            R.from_matrix(self._active_ee_to_passive_ee).as_quat(),
         )
 
     def configure_body_settings(self) -> None:
@@ -255,7 +256,7 @@ class LRPyBulletEnv(PyBulletEnv):
                 self.p.setCollisionFilterGroupMask(body_id, linkIndex, group, mask)
 
             # apply velocity control to panda arm to make it stationary
-            for i in range(self.active_n_dofs):
+            for i in range(self._active_n_dofs):
                 self.p.setJointMotorControl2(
                     body_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
                 )
@@ -266,19 +267,6 @@ class LRPyBulletEnv(PyBulletEnv):
             # enable force torque
             for joint in range(self.p.getNumJoints(body_id)):
                 self.p.enableJointForceTorqueSensor(body_id, joint, 1)
-
-    @staticmethod
-    def parse_config(path_to_yaml: str) -> omegaconf.DictConfig:
-        """Parse a configuration file."""
-        config = omegaconf.DictConfig(OmegaConf.load(path_to_yaml))
-
-        # to get around mypy "Keywords must be strings"
-        # and "value after ** should be a mapping"
-        config_dict = {str(key): value for key, value in dict(config).items()}
-
-        config = OmegaConf.structured(LRPyBulletConfig(**config_dict))
-
-        return config
 
 
 if __name__ == "__main__":

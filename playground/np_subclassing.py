@@ -1,5 +1,6 @@
-# pylint: disable=attribute-defined-outside-init, no-member
 """Testing numpy subclassing."""
+
+from __future__ import annotations
 
 from typing import TypeAlias
 
@@ -7,12 +8,12 @@ import numpy as np
 
 
 # from numpy docs
-class RealisticInfoArray(np.ndarray):
+class SubclassWithoutArrayFinalize(np.ndarray):
     """From Numpy Docs with array_finalize removed."""
 
     info = None
 
-    def __new__(cls, input_array, info=None) -> "RealisticInfoArray":
+    def __new__(cls, input_array, info=None) -> SubclassWithoutArrayFinalize:
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
         obj = np.asarray(input_array).view(cls)
@@ -22,10 +23,10 @@ class RealisticInfoArray(np.ndarray):
         return obj
 
 
-class RealisticInfoArrayWithArrayFinalize(np.ndarray):
+class SubclassWithArrayFinalize(np.ndarray):
     """From Numpy Docs."""
 
-    def __new__(cls, input_array, info=None) -> "RealisticInfoArrayWithArrayFinalize":
+    def __new__(cls, input_array, info=None) -> SubclassWithArrayFinalize:
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
         obj = np.asarray(input_array).view(cls)
@@ -34,6 +35,7 @@ class RealisticInfoArrayWithArrayFinalize(np.ndarray):
         # Finally, we must return the newly created object:
         return obj
 
+    # pylint: disable=attribute-defined-outside-init
     def __array_finalize__(self, obj):
         # see InfoArray.__array_finalize__ for comments
         if obj is None:
@@ -44,7 +46,7 @@ class RealisticInfoArrayWithArrayFinalize(np.ndarray):
 State: TypeAlias = np.ndarray
 
 
-class LR_State(State):
+class LimbRepoState(State):
     """Limb Repositioning State.
 
     This is a subclass of np.ndarray, and allows access to active and
@@ -53,7 +55,7 @@ class LR_State(State):
 
     def __new__(
         cls, input_array: np.ndarray, active_n_dofs: int = 6, passive_n_dofs: int = 6
-    ) -> "LR_State":
+    ) -> LimbRepoState:
         assert len(input_array) == 3 * (active_n_dofs + passive_n_dofs)
 
         obj = np.asarray(input_array).view(cls)
@@ -62,6 +64,7 @@ class LR_State(State):
 
         return obj
 
+    # pylint: disable=attribute-defined-outside-init
     def __array_finalize__(self, obj):
         if obj is None:
             return
@@ -122,8 +125,8 @@ class LR_State(State):
 
 
 if __name__ == "__main__":
-    # LR_State Testing
-    state = LR_State(np.arange(36), active_n_dofs=6, passive_n_dofs=6)
+    # LimbRepoState Testing
+    state = LimbRepoState(np.arange(36), active_n_dofs=6, passive_n_dofs=6)
 
     print(state.active_kinematics)
     print(state.active_pos * 10)
@@ -132,22 +135,22 @@ if __name__ == "__main__":
     print(type(state.passive_pos + np.array([1, 2, 3, 4, 5, 6])))
     # [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17]
     # [ 0 10 20 30 40 50]
-    # <class '__main__.LR_State'>
-    # <class '__main__.LR_State'>
-    # <class '__main__.LR_State'>
+    # <class '__main__.LimbRepoState'>
+    # <class '__main__.LimbRepoState'>
+    # <class '__main__.LimbRepoState'>
 
     # Subclassing Testing
     a = np.array([1, 2, 3])
-    b = RealisticInfoArray(a, info="b")
-    c = RealisticInfoArrayWithArrayFinalize(a, info="c")
-    d = RealisticInfoArrayWithArrayFinalize(a, info="d")
+    b = SubclassWithoutArrayFinalize(a, info="b")
+    c = SubclassWithArrayFinalize(a, info="c")
+    d = SubclassWithArrayFinalize(a, info="d")
 
     # raises error because no array_finalize:
     # AttributeError: 'RealisticInfoArray' object has no attribute 'info'
     # print((a + b).info)
 
     # c c <class '__main__.RealisticInfoArrayWithArrayFinalize'>
-    print((a + c).info, (c + a).info, type(a + c))  # type: ignore[attr-defined]
+    print((a + c).info, (c + a).info, type(a + c))  # type: ignore[attr-defined]  # pylint: disable=no-member
 
     # prints c info
-    print((c + d).info)  # type: ignore[attr-defined]
+    print((c + d).info)  # type: ignore[attr-defined] # pylint: disable=no-member
