@@ -3,19 +3,21 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "python_research_starter"
+name = "limb_repo"
 version = "0.1.0"
-description = "An example of how to structure research code."
+description = "Limb Repositioning Research Project."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
    "matplotlib",
-   "numpy",
+   "numpy<2.0",
    "pandas",
    "pandas-stubs",
    "hydra-core",
    "omegaconf",
    "tomsutils@git+https://github.com/tomsilver/toms-utils.git",
+   "pybullet",
+   "scipy"
 ]
 
 [project.optional-dependencies]
@@ -33,7 +35,7 @@ develop = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-python_research_starter = ["py.typed"]
+limb_repo = ["py.typed"]
 
 [tool.black]
 line-length = 88
@@ -51,6 +53,7 @@ strict_equality = true
 disallow_untyped_calls = true
 warn_unreachable = true
 exclude = ["venv/*"]
+disable_error_code = ["import-untyped", "import-not-found"]
 
 [[tool.mypy.overrides]]
 module = [
