@@ -6,7 +6,6 @@ import numpy as np
 import omegaconf
 import pybullet
 import pybullet_utils.bullet_client as bc
-from omegaconf import OmegaConf
 
 from limb_repo.environments.base_env import BaseEnv
 
@@ -45,17 +44,3 @@ class PyBulletEnv(BaseEnv):
         # )
 
         self.dt = config.dt
-
-    @staticmethod
-    def parse_config(path_to_yaml: str) -> omegaconf.DictConfig:
-        """Parse a configuration file."""
-        config = omegaconf.DictConfig(OmegaConf.load(path_to_yaml))
-        OmegaConf.register_new_resolver("eval", eval, use_cache=False)
-
-        # to get around mypy "Keywords must be strings"
-        # and "value after ** should be a mapping"
-        config_dict = {str(key): value for key, value in dict(config).items()}
-
-        config = OmegaConf.structured(PyBulletConfig(**config_dict))
-
-        return config

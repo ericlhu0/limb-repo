@@ -7,8 +7,8 @@ import pinocchio as pin
 import pybullet_utils.bullet_client as bc
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
-from limb_repo.environments.lr_pybullet_env import LRPyBulletEnv
-from limb_repo.structs import Action, JointState, LRState
+from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
+from limb_repo.structs import Action, JointState, LimbRepoState
 from limb_repo.utils import pinocchio_utils
 
 
@@ -18,22 +18,22 @@ class MathDynamicsNoNVector(BaseDynamics):
     def __init__(self, config: omegaconf.DictConfig) -> None:
         """Initialize the dynamics model."""
         # config.pybullet_config.use_gui = False
-        self.env = LRPyBulletEnv(config=config)
+        self.env = LimbRepoPyBulletEnv(config=config)
         print("past init")
         self.dt = self.env.dt
-        self.current_state = self.env.get_lr_state()
+        self.current_state = self.env.get_limb_repo_state()
 
         # create pinnochio model for active
-        self.active_model = pin.buildModelFromUrdf(self.env.active_urdf)
+        self.active_model = pin.buildModelFromUrdf(self.env._active_urdf)
         self.active_data = self.active_model.createData()
         self.active_model.gravity.linear = np.array(config.pybullet_config.gravity)
 
         # create pinnochio model for passive (uses 6DoF while pybullet uses 4DoF)
-        self.passive_model = pin.buildModelFromUrdf(self.env.passive_urdf)
+        self.passive_model = pin.buildModelFromUrdf(self.env._passive_urdf)
         self.passive_data = self.passive_model.createData()
         self.passive_model.gravity.linear = np.array(config.pybullet_config.gravity)
 
-    def step(self, torques: Action) -> LRState:
+    def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
         current_state = self.current_state
         pos_a_i = current_state.active_q
@@ -47,11 +47,6 @@ class MathDynamicsNoNVector(BaseDynamics):
         Jr = self._calculate_jacobian(
             self.env.p, self.env.active_id, self.env.active_ee_link_id, pos_a_i
         )
-        Jh = self._calculate_jacobian(
-            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, pos_p_i
-        )
-        Jhinv = np.linalg.pinv(Jh)
-
         Mr = self._calculate_mass_matrix(self.active_model, self.active_data, pos_a_i)
         gr = self._calculate_gravity_vector(
             self.active_model, self.active_data, pos_a_i
@@ -60,6 +55,10 @@ class MathDynamicsNoNVector(BaseDynamics):
             self.active_model, self.active_data, pos_a_i, vel_a_i
         )
 
+        Jh = self._calculate_jacobian(
+            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, pos_p_i
+        )
+        Jhinv = np.linalg.pinv(Jh)
         Mh = self._calculate_mass_matrix(self.passive_model, self.passive_data, pos_p_i)
         gh = self._calculate_gravity_vector(
             self.passive_model, self.passive_data, pos_p_i
@@ -98,8 +97,8 @@ class MathDynamicsNoNVector(BaseDynamics):
         pos_a = pos_a_i + vel_a * self.dt
         pos_p = pos_p_i + vel_p * self.dt
 
-        resulting_state = LRState(
-            np.concatenate([pos_a, vel_a, acc_a, pos_p, vel_p, acc_p])
+        resulting_state = LimbRepoState(
+            np.concatenate([pos_a, vel_a, pos_p, vel_p])
         )
 
         print('resulting state', resulting_state)
@@ -113,21 +112,21 @@ class MathDynamicsNoNVector(BaseDynamics):
         print("hacc", acc_p)
         print("")
 
-        self.env.set_lr_state(resulting_state)
+        self.env.set_limb_repo_state(resulting_state)
 
-        self.current_state = LRState(resulting_state)
+        self.current_state = LimbRepoState(resulting_state)
 
         return self.current_state
 
-    def get_state(self) -> LRState:
+    def get_state(self) -> LimbRepoState:
         """Get the state of the dynamics model."""
-        return self.env.get_lr_state()
+        return self.env.get_limb_repo_state()
 
     def set_state(
-        self, state: LRState, set_vel: bool = True, set_acc: bool = False
+        self, state: LimbRepoState, set_vel: bool = True
     ) -> None:
         """Set the state of the dynamics model."""
-        self.env.set_lr_state(state, set_vel, set_acc)
+        self.env.set_limb_repo_state(state, set_vel)
 
     @staticmethod
     def _calculate_jacobian(

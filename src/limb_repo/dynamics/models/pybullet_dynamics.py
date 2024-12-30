@@ -3,8 +3,8 @@
 import omegaconf
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
-from limb_repo.environments.lr_pybullet_env import LRPyBulletEnv
-from limb_repo.structs import Action, LRState
+from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
+from limb_repo.structs import Action, LimbRepoState
 
 
 class PyBulletDynamics(BaseDynamics):
@@ -12,24 +12,24 @@ class PyBulletDynamics(BaseDynamics):
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
         """Initialize the dynamics model."""
-        self.env = LRPyBulletEnv(config=config)
+        self.env = LimbRepoPyBulletEnv(config=config)
         self.dt = self.env.dt
-        self.current_state = self.env.get_lr_state()
+        self.current_state = self.env.get_limb_repo_state()
 
         # Set the grasp constraint in sim
-        self.env.set_grasp_constraint()
+        self.env.set_limb_repo_constraint()
 
-    def step(self, torques: Action) -> LRState:
+    def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
         # self.env.step()
-        # return self.env.get_lr_state()/
+        # return self.env.get_limb_repo_state()/
         # return
         return self.env.send_torques(torques)
 
-    def get_state(self) -> LRState:
+    def get_state(self) -> LimbRepoState:
         """Get the state of the dynamics model."""
-        return self.env.get_lr_state()
+        return self.env.get_limb_repo_state()
 
     def set_state(self, state, set_vel=True, zero_acc=False):
         """Set the state of the dynamics model."""
-        return self.env.set_lr_state(state, set_vel, zero_acc)
+        return self.env.get_limb_repo_state(state, set_vel, zero_acc)

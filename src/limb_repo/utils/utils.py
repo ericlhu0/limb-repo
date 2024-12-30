@@ -1,37 +1,32 @@
 """Utility functions."""
 
 import os
+from typing import Type, TypeVar
 
-from limb_repo.benchmarks.base_benchmark import Benchmark
-from limb_repo.structs import Action, Task
+import omegaconf
+from omegaconf import OmegaConf
+
 
 def get_root_path() -> str:
     """Get the root path of the repository."""
-    return os.path.abspath(os.path.join(__file__, "../../../..")
-)
+    return os.path.abspath(os.path.join(__file__, "../../../.."))
+
 
 def to_abs_path(input_path: str) -> str:
     """Get the absolute path of the repository."""
     return os.path.abspath(os.path.join(get_root_path(), input_path))
 
-def plan_is_valid(plan: list[Action], task: Task, benchmark: Benchmark) -> bool:
-    """Checks if the plan solves the task."""
-    state = task.init
-    for action in plan:
-        state = benchmark.get_next_state(state, action)
-    return benchmark.check_goal(state, task.goal)
+
+T = TypeVar("T")
 
 
-def get_plan_cost(plan: list[Action], task: Task, benchmark: Benchmark) -> float:
-    """Get the total plan cost."""
-    cost = 0.0
-    state = task.init
-    for action in plan:
-        next_state = benchmark.get_next_state(state, action)
-        cost += benchmark.get_cost(state, action, next_state)
-        state = next_state
-    return cost
+def parse_config(path_to_yaml: str, config_class: Type[T]) -> omegaconf.DictConfig:
+    """Parse config file with parametric dataclass."""
+    config = OmegaConf.load(path_to_yaml)
 
-if __name__ == "__main__":
-    print(get_root_path())
-    print("Done.")
+    # Convert config into dictionary and initialize the specified dataclass
+    config_dict = {str(key): value for key, value in dict(config).items()}
+
+    config = OmegaConf.structured(config_class(**config_dict))
+    assert isinstance(config, omegaconf.DictConfig)
+    return config

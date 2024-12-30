@@ -2,21 +2,21 @@
 
 import numpy as np
 
-from limb_repo.structs import LREEState
+from limb_repo.structs import LimbRepoEEState
 
 
 def check_ee_kinematics(
-    lr_ee_state: LREEState,
+    limb_repo_ee_state: LimbRepoEEState,
     active_ee_to_passive_ee: np.ndarray,
     debug=False,
 ):
     """Check if end-effector pos, vel and orn of active and passive match."""
-    active_ee_pos = lr_ee_state.active_ee_pos
-    active_ee_vel = lr_ee_state.active_ee_vel
-    active_ee_orn = lr_ee_state.active_ee_orn
-    passive_ee_pos = lr_ee_state.passive_ee_pos
-    passive_ee_vel = lr_ee_state.passive_ee_vel
-    passive_ee_orn = lr_ee_state.passive_ee_orn
+    active_ee_pos = limb_repo_ee_state.active_ee_pos
+    active_ee_vel = limb_repo_ee_state.active_ee_vel
+    active_ee_orn = limb_repo_ee_state.active_ee_orn
+    passive_ee_pos = limb_repo_ee_state.passive_ee_pos
+    passive_ee_vel = limb_repo_ee_state.passive_ee_vel
+    passive_ee_orn = limb_repo_ee_state.passive_ee_orn
 
     position_check = np.allclose(active_ee_pos, passive_ee_pos, atol=0.01)
     velocity_check = np.allclose(active_ee_vel, passive_ee_vel, atol=0.01)
