@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import omegaconf
+import pybullet
 from scipy.spatial.transform import Rotation as R
 
 from limb_repo.environments.pybullet_env import (
@@ -50,10 +51,9 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         )
         self._active_init_q = np.array(self.config.active_q)
         self._active_init_state = BodyState(
-            np.concatenate([self._active_init_q, np.zeros(6 + 6)])
+            np.concatenate([self._active_init_q, np.zeros(6)])
         )
         self._active_n_dofs = len(self._active_init_q)
-        self._active_ee_link_id = self._active_n_dofs - 1
 
         self._passive_urdf: str = self.config.passive_urdf
         self._passive_init_base_pose = np.array(self.config.passive_base_pose)
@@ -63,10 +63,9 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         )
         self._passive_init_q = np.array(self.config.passive_q)
         self._passive_init_state = BodyState(
-            np.concatenate([self._passive_init_q, np.zeros(6 + 6)])
+            np.concatenate([self._passive_init_q, np.zeros(6)])
         )
         self._passive_n_dofs = len(self._passive_init_q)
-        self._passive_ee_link_id = self._passive_n_dofs - 1
 
         self._prev_active_q = self._active_init_q
         self._prev_passive_q = self._passive_init_q
@@ -114,11 +113,14 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
 
+        self._active_ee_link_id = self.p.getNumJoints(self.active_id) - 1
+        self._passive_ee_link_id = self.p.getNumJoints(self.passive_id) - 1
+
         # Configure settings for sim bodies
         self.configure_body_settings()
 
         # Set initial states for active and passive
-        for _ in range(3):  # doing it 3 times sets vel and acc to 0
+        for _ in range(2):  # doing it 2 times sets vel and acc to 0
             self.set_body_state(self.active_id, self._active_init_state)
             self.set_body_state(self.passive_id, self._passive_init_state)
 
@@ -126,29 +128,45 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         """Step the environment."""
         self.p.stepSimulation()
 
-    def send_torques(self, body_id: int, torques: np.ndarray) -> None:
-        """Send joint torques."""
+    def send_torques(self, torques: np.ndarray) -> None:
+        """Send joint torques to the active body."""
         # to use torque control, velocity control must be disabled at every time step
-        prev_state = self.get_body_state(body_id)
-        if body_id == self.active_id:
-            self._prev_active_q = prev_state.q
-            self._prev_active_qd = prev_state.qd
-        elif body_id == self.passive_id:
-            self._prev_passive_q = prev_state.q
-            self._prev_passive_qd = prev_state.qd
-        else:
-            raise ValueError("Invalid body id")
+        prev_state = self.get_limb_repo_state()
+        self._prev_active_q = prev_state.active_q
+        self._prev_active_qd = prev_state.active_qd
+        self._prev_passive_q = prev_state.active_q
+        self._prev_passive_qd = prev_state.active_qd
 
-        for j in pybullet_utils.get_good_joints(self.p, body_id):
-            self.p.setJointMotorControl2(body_id, j, self.p.VELOCITY_CONTROL, force=0)
+        # disable velocity control
+        for j in pybullet_utils.get_free_joints(self.p, self.active_id):
+            self.p.setJointMotorControl2(
+                bodyUniqueId=self.active_id,
+                jointIndex=j,
+                controlMode=self.p.VELOCITY_CONTROL,
+                targetVelocity=0,
+                force=0,
+            )
+
+        for j in pybullet_utils.get_free_joints(self.p, self.passive_id):
+            self.p.setJointMotorControl2(
+                bodyUniqueId=self.passive_id,
+                jointIndex=j,
+                controlMode=self.p.VELOCITY_CONTROL,
+                targetVelocity=0,
+                force=0,
+            )
 
         # apply original torque command to robot
         self.p.setJointMotorControlArray(
-            body_id,
-            pybullet_utils.get_good_joints(self.p, body_id),
-            self.p.TORQUE_CONTROL,
+            bodyUniqueId=self.active_id,
+            jointIndices=pybullet_utils.get_free_joints(self.p, self.active_id),
+            controlMode=pybullet.TORQUE_CONTROL,
             forces=torques,
         )
+
+        print("state before stepping: ", self.get_limb_repo_state().active_qd)
+        self.step()
+        print("state after stepping: ", self.get_limb_repo_state().passive_qd)
 
     def set_body_state(
         self, body_id: int, state: BodyState, set_vel: bool = True
@@ -172,7 +190,7 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         if not set_vel:
             state[state.vel_slice] = (state.q - prev_state.q) / self.dt
 
-        for i, joint_id in enumerate(pybullet_utils.get_good_joints(self.p, body_id)):
+        for i, joint_id in enumerate(pybullet_utils.get_free_joints(self.p, body_id)):
             self.p.resetJointState(
                 body_id, joint_id, state.q[i], targetVelocity=state.qd[i]
             )
@@ -184,28 +202,26 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         If set_vel is False, only set pos, and vel is calculated using
         the last pos.
         """
-        self.set_body_state(state.active_kinematics, self.active_id, set_vel)
-        self.set_body_state(state.passive_kinematics, self.passive_id, set_vel)
+        self.set_body_state(state.active, self.active_id, set_vel)
+        self.set_body_state(state.passive, self.passive_id, set_vel)
 
     def get_body_state(self, body_id: int) -> BodyState:
         """Get the states of active or passive."""
         pos = np.array(
             [
                 self.p.getJointState(body_id, i)[0]
-                for i in pybullet_utils.get_good_joints(self.p, body_id)
+                for i in pybullet_utils.get_free_joints(self.p, body_id)
             ]
         )
 
-        if body_id == self.active_id:
-            vel = (pos - self._prev_active_q) / self.dt
-            acc = (vel - self._prev_active_qd) / self.dt
-        elif body_id == self.passive_id:
-            vel = (pos - self._prev_passive_q) / self.dt
-            acc = (vel - self._prev_passive_qd) / self.dt
-        else:
-            raise ValueError("Invalid body id")
+        vel = np.array(
+            [
+                self.p.getJointState(body_id, i)[1]
+                for i in pybullet_utils.get_free_joints(self.p, body_id)
+            ]
+        )
 
-        return BodyState(np.concatenate([pos, vel, acc]))
+        return BodyState(np.concatenate([pos, vel]))
 
     def get_limb_repo_state(self) -> LimbRepoState:
         """Get the states of active and passive."""
@@ -255,14 +271,14 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
             for linkIndex in range(self.p.getNumJoints(self.passive_id)):
                 self.p.setCollisionFilterGroupMask(body_id, linkIndex, group, mask)
 
-            # apply velocity control to panda arm to make it stationary
-            for i in range(self._active_n_dofs):
-                self.p.setJointMotorControl2(
-                    body_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
-                )
+            # # apply velocity control to panda arm to make it stationary
+            # for i in range(self._active_n_dofs):
+            #     self.p.setJointMotorControl2(
+            #         body_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
+            #     )
 
-            for i in range(1000):
-                self.p.stepSimulation()
+            # for i in range(1000):
+            #     self.p.stepSimulation()
 
             # enable force torque
             for joint in range(self.p.getNumJoints(body_id)):

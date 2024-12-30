@@ -139,6 +139,9 @@ if __name__ == "__main__":
     # <class '__main__.LimbRepoState'>
     # <class '__main__.LimbRepoState'>
 
+    nd_state = np.array([state, state, state])
+    print(nd_state[:, state.passive_acc])
+
     # Subclassing Testing
     a = np.array([1, 2, 3])
     b = SubclassWithoutArrayFinalize(a, info="b")
