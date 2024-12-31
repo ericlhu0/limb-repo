@@ -23,61 +23,53 @@ class MathDynamicsWithNVector(BaseDynamics):
     def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
         current_state = self.current_state
-        pos_a_i = current_state.active_q
-        vel_a_i = current_state.active_qd
-        pos_p_i = current_state.passive_q
-        vel_p_i = current_state.passive_qd
+        q_a_i = current_state.active_q
+        qd_a_i = current_state.active_qd
+        q_p_i = current_state.passive_q
+        qd_p_i = current_state.passive_qd
         R = self.env.active_base_to_passive_base_twist
+
+        assert np.allclose(R, R.T)
+        assert np.allclose(R, np.linalg.pinv(R))
 
         print("current state passive", current_state)
 
         Jr = self._calculate_jacobian(
-            self.env.p, self.env.active_id, self.env.active_ee_link_id, pos_a_i
+            self.env.p, self.env.active_id, self.env.active_ee_link_id, q_a_i
         )
         Jh = self._calculate_jacobian(
-            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, pos_p_i
+            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, q_p_i
         )
         Jhinv = np.linalg.pinv(Jh)
 
-        Mr = self._calculate_mass_matrix(self.env.p, self.env.active_id, pos_a_i)
-        Mh = self._calculate_mass_matrix(self.env.p, self.env.passive_id, pos_p_i)
+        Mr = self._calculate_mass_matrix(self.env.p, self.env.active_id, q_a_i)
+        Mh = self._calculate_mass_matrix(self.env.p, self.env.passive_id, q_p_i)
 
-        Nr = self._calculate_N_vector(self.env.p, self.env.active_id, pos_a_i, vel_a_i)
-        Nh = self._calculate_N_vector(self.env.p, self.env.passive_id, pos_p_i, vel_p_i)
+        Nr = self._calculate_N_vector(self.env.p, self.env.active_id, q_a_i, qd_a_i)
+        Nh = self._calculate_N_vector(self.env.p, self.env.passive_id, q_p_i, qd_p_i)
 
         acc_a = np.linalg.pinv((Jhinv @ R @ -Jr).T @ Mh @ (Jhinv @ R @ Jr) - Mr) @ (
             (Jhinv @ R @ Jr).T
             @ (
-                Mh * (1 / self.dt) @ (Jhinv @ R @ Jr) @ vel_a_i
-                - Mh * (1 / self.dt) @ vel_p_i
+                Mh * (1 / self.dt) @ (Jhinv @ R @ Jr) @ qd_a_i
+                - Mh * (1 / self.dt) @ qd_p_i
                 + Nh
             )
             + Nr
             - np.array(torques)
         )
 
-        vel_a = vel_a_i + acc_a * self.dt
+        vel_a = qd_a_i + acc_a * self.dt
         lin_vel_a = Jr @ vel_a
         lin_vel_p = R @ lin_vel_a
         vel_p = Jhinv @ lin_vel_p
 
-        acc_p = (vel_p - vel_p_i) / self.dt
+        # acc_p = (vel_p - qd_p_i) / self.dt
 
-        pos_a = pos_a_i + vel_a * self.dt
-        pos_p = pos_p_i + vel_p * self.dt
+        pos_a = q_a_i + vel_a * self.dt
+        pos_p = q_p_i + vel_p * self.dt
 
-        resulting_state = LimbRepoState(
-            np.concatenate([pos_a, vel_a, pos_p, vel_p])
-        )
-
-        print("with n vector")
-        print("rpos", pos_a)
-        print("rvel", vel_a)
-        print("racc", acc_a)
-        print("hpos", pos_p)
-        print("hvel", vel_p)
-        print("hacc", acc_p)
-        print("")
+        resulting_state = LimbRepoState(np.concatenate([pos_a, vel_a, pos_p, vel_p]))
 
         self.env.set_limb_repo_state(resulting_state)
 
@@ -89,11 +81,9 @@ class MathDynamicsWithNVector(BaseDynamics):
         """Get the state of the dynamics model."""
         return self.env.get_limb_repo_state()
 
-    def set_state(
-        self, state: LimbRepoState, set_vel: bool = True, set_acc: bool = False
-    ) -> None:
+    def set_state(self, state: LimbRepoState, set_vel: bool = True) -> None:
         """Set the state of the dynamics model."""
-        self.env.set_limb_repo_state(state, set_vel, set_acc)
+        self.env.set_limb_repo_state(state, set_vel)
 
     @staticmethod
     def _calculate_jacobian(

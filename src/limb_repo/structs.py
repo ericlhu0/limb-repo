@@ -1,8 +1,10 @@
 """Data structures."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import TypeAlias
+
 import numpy as np
 
 # Define some data structures for this example repository (to be changed).
@@ -145,6 +147,7 @@ class LimbRepoState(JointState):
     def passive_qd(self):
         """Get passive velocity."""
         return self[self.passive_qd_slice]
+
 
 @dataclass
 class LimbRepoEEState:

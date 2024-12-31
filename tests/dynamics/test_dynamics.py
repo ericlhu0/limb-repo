@@ -10,7 +10,9 @@ from limb_repo.utils import utils
 
 def test_dynamics_no_n_vector():
     """Test dynamics formulation without n vector."""
-    parsed_config = utils.parse_config("assets/configs/test_env_config.yaml", LimbRepoPyBulletConfig)
+    parsed_config = utils.parse_config(
+        "assets/configs/test_env_config.yaml", LimbRepoPyBulletConfig
+    )
     parsed_config.pybullet_config.use_gui = False
     dynamics_model = MathDynamicsNoNVector(parsed_config)
 

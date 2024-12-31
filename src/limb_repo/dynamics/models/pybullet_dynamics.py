@@ -21,15 +21,12 @@ class PyBulletDynamics(BaseDynamics):
 
     def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
-        # self.env.step()
-        # return self.env.get_limb_repo_state()/
-        # return
         return self.env.send_torques(torques)
 
     def get_state(self) -> LimbRepoState:
         """Get the state of the dynamics model."""
         return self.env.get_limb_repo_state()
 
-    def set_state(self, state, set_vel=True, zero_acc=False):
+    def set_state(self, state, set_vel=True):
         """Set the state of the dynamics model."""
-        return self.env.get_limb_repo_state(state, set_vel, zero_acc)
+        return self.env.set_limb_repo_state(state, set_vel)

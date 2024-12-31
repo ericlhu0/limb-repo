@@ -20,5 +20,5 @@ class BaseDynamics(abc.ABC):
         """Get the state of the dynamics model."""
 
     @abc.abstractmethod
-    def set_state(self, state: LimbRepoState, set_vel: bool, zero_acc: bool) -> None:
+    def set_state(self, state: LimbRepoState, set_vel: bool) -> None:
         """Set the state of the dynamics model."""

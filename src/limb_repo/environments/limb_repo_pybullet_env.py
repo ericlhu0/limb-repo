@@ -179,7 +179,7 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
 
         if not set_vel:
             goal_state[goal_state.vel_slice] = (goal_state.q - prev_state.q) / self.dt
-        
+
         if body_id == self.active_id:
             self._prev_active_q = prev_state.q
             self._prev_active_qd = prev_state.qd
@@ -227,7 +227,7 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         active = self.get_body_state(self.active_id)
         passive = self.get_body_state(self.passive_id)
         return LimbRepoState(np.concatenate([active, passive]))
-    
+
     def get_limb_repo_ee_state(self) -> LimbRepoEEState:
         """Get the states of active and passive ee.
 
