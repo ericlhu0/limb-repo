@@ -57,8 +57,8 @@ class MathDynamicsNoNVector(BaseMathDynamics):
             @ R
             @ np.linalg.pinv(Jh.T)
             @ (
-                (((Mh * (1 / self.dt)) - Ch) @ Jhinv @ R @ Jr @ qd_a_i)
-                + ((Mh * (1 / self.dt)) @ qd_p_i - gh)
+                (((Mh * (1 / self.dt)) + Ch) @ Jhinv @ R @ Jr @ qd_a_i)
+                - ((Mh * (1 / self.dt)) @ qd_p_i + gh)
             )
             - Cr @ qd_a_i
             - gr

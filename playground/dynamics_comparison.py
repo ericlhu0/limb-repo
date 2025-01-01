@@ -11,6 +11,8 @@ from limb_repo.dynamics.models.pybullet_dynamics import PyBulletDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletConfig
 from limb_repo.utils import utils
 
+np.random.seed(0)
+
 parsed_config = utils.parse_config(
     "assets/configs/test_env_config.yaml", LimbRepoPyBulletConfig
 )
