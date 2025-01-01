@@ -9,7 +9,7 @@ def check_ee_kinematics(
     limb_repo_ee_state: LimbRepoEEState,
     active_ee_to_passive_ee: np.ndarray,
     debug=False,
-):
+) -> bool:
     """Check if end-effector pos, vel and orn of active and passive match."""
     active_ee_pos = limb_repo_ee_state.active_ee_pos
     active_ee_vel = limb_repo_ee_state.active_ee_vel
