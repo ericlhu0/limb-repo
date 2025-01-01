@@ -6,6 +6,7 @@ import numpy as np
 
 # pylint: disable=unused-import
 from limb_repo.dynamics.models.math_dynamics_no_n_vector import MathDynamicsNoNVector
+
 # pylint: disable=unused-import
 from limb_repo.dynamics.models.math_dynamics_with_n_vector import (
     MathDynamicsWithNVector,

@@ -7,7 +7,7 @@ name = "limb_repo"
 version = "0.1.0"
 description = "Limb Repositioning Research Project."
 readme = "README.md"
-requires-python = "==3.10"
+requires-python = "<3.11"
 dependencies = [
    "matplotlib",
    "numpy<2.0",
