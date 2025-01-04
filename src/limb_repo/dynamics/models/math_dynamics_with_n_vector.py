@@ -22,25 +22,23 @@ class MathDynamicsWithNVector(BaseMathDynamics):
         assert np.allclose(R, R.T)
         assert np.allclose(R, np.linalg.pinv(R))
 
-        Jr = self._calculate_jacobian(
+        Jr = self.calculate_jacobian(
             self.env.p, self.env.active_id, self.env.active_ee_link_id, q_a_i
         )
-        Mr = self._calculate_mass_matrix(self.active_model, self.active_data, q_a_i)
-        gr = self._calculate_gravity_vector(self.active_model, self.active_data, q_a_i)
-        Cr = self._calculate_coriolis_matrix(
+        Mr = self.calculate_mass_matrix(self.active_model, self.active_data, q_a_i)
+        gr = self.calculate_gravity_vector(self.active_model, self.active_data, q_a_i)
+        Cr = self.calculate_coriolis_matrix(
             self.active_model, self.active_data, q_a_i, qd_a_i
         )
         Nr = Cr @ qd_a_i + gr
 
-        Jh = self._calculate_jacobian(
+        Jh = self.calculate_jacobian(
             self.env.p, self.env.passive_id, self.env.passive_ee_link_id, q_p_i
         )
         Jhinv = np.linalg.pinv(Jh)
-        Mh = self._calculate_mass_matrix(self.passive_model, self.passive_data, q_p_i)
-        gh = self._calculate_gravity_vector(
-            self.passive_model, self.passive_data, q_p_i
-        )
-        Ch = self._calculate_coriolis_matrix(
+        Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, q_p_i)
+        gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, q_p_i)
+        Ch = self.calculate_coriolis_matrix(
             self.passive_model, self.passive_data, q_p_i, qd_p_i
         )
         Nh = Ch @ qd_p_i + gh

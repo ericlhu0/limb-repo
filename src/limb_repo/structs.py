@@ -11,7 +11,8 @@ import numpy as np
 State: TypeAlias = np.ndarray
 Action: TypeAlias = np.ndarray
 Goal: TypeAlias = State
-Pose: TypeAlias = np.ndarray
+Pose: TypeAlias = np.ndarray  # x, y, z, qx, qy, qz, qw
+"""3D Position and Quaternion: x, y, z, qx, qy, qz, qw"""
 
 
 class Task:
