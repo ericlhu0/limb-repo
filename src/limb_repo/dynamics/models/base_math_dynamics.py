@@ -18,6 +18,7 @@ class BaseMathDynamics(BaseDynamics):
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
         # config.pybullet_config.use_gui = False
+        super().__init__(config)
         self.env = LimbRepoPyBulletEnv(config=config)
         self.dt = self.env.dt
         self.current_state = self.env.get_limb_repo_state()
@@ -73,7 +74,7 @@ class BaseMathDynamics(BaseDynamics):
         self.env.set_limb_repo_state(state, set_vel)
 
     @staticmethod
-    def _calculate_jacobian(
+    def calculate_jacobian(
         p: bc.BulletClient, body_id: int, ee_link_id: int, joint_positions: JointState
     ) -> np.ndarray:
         jac_t, jac_r = p.calculateJacobian(
@@ -87,7 +88,7 @@ class BaseMathDynamics(BaseDynamics):
         return np.concatenate((np.array(jac_t), np.array(jac_r)), axis=0)
 
     @staticmethod
-    def _calculate_mass_matrix(
+    def calculate_mass_matrix(
         body_model: pin.Model, body_data: pin.Data, joint_positions: JointState
     ) -> np.ndarray:
         joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
@@ -96,7 +97,7 @@ class BaseMathDynamics(BaseDynamics):
         return pin.crba(body_model, body_data, joint_positions_pin)
 
     @staticmethod
-    def _calculate_gravity_vector(
+    def calculate_gravity_vector(
         body_model: pin.Model, body_data: pin.Data, joint_positions: JointState
     ) -> np.ndarray:
         joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
@@ -105,7 +106,7 @@ class BaseMathDynamics(BaseDynamics):
         return pin.computeGeneralizedGravity(body_model, body_data, joint_positions_pin)
 
     @staticmethod
-    def _calculate_coriolis_matrix(
+    def calculate_coriolis_matrix(
         body_model: pin.Model,
         body_data: pin.Data,
         joint_positions: JointState,

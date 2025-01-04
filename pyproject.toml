@@ -18,8 +18,9 @@ dependencies = [
    "tomsutils@git+https://github.com/tomsilver/toms-utils.git",
    "pybullet_helpers@git+https://github.com/ericlhu0/pybullet-helpers",
    "pybullet",
-   "scipy==1.14.1",
-   "pin"
+   "scipy",
+   "pin",
+   "h5py"
 ]
 
 [project.optional-dependencies]
