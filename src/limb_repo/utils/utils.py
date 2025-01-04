@@ -8,9 +8,7 @@ import omegaconf
 import pybullet_helpers
 import pybullet_helpers.inverse_kinematics
 from omegaconf import OmegaConf
-from pybullet_helpers.inverse_kinematics import (
-    InverseKinematicsError,
-)
+from pybullet_helpers.inverse_kinematics import InverseKinematicsError
 from pybullet_helpers.robots.single_arm import SingleArmPyBulletRobot
 from scipy.spatial.transform import Rotation as R
 
