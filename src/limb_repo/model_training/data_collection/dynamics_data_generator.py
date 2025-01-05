@@ -10,6 +10,7 @@ from pybullet_helpers.robots.human import HumanArm6DoF
 from pybullet_helpers.robots.panda import PandaPybulletRobotLimbRepo
 from scipy.spatial.transform import Rotation as R
 
+from limb_repo.dynamics.checks import check_ee_kinematics
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.dynamics.models.base_math_dynamics import BaseMathDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
@@ -47,11 +48,16 @@ class DynamicsDataGenerator:
         # pylint: disable=protected-access
         self.pybullet_helpers_human = HumanArm6DoF(self._pybullet_helpers_sim._client)
 
-        self._ACTIONS_PER_SAMPLED_JOINT_CONFIG = 100
+        self._ACTIONS_PER_SAMPLED_JOINT_CONFIG = 1
         self._ACTION_MIN_TORQUE = -1
         self._ACTION_MAX_TORQUE = 1
         self._MIN_INIT_QD = -1
         self._MAX_INIT_QD = 1
+
+    def check_valid_active_config():
+        """Check if this sampled active config is gives a valid limb repo
+        config."""
+        pass
 
     def generate_data(
         self,
@@ -64,7 +70,6 @@ class DynamicsDataGenerator:
         hdf5_saver = file_utils.HDF5Saver(final_file_path, tmp_dir)
 
         while collected_data < num_datapoints:
-            print("col data, num data", collected_data, num_datapoints)
             # sample active initial q (to enforce joint limits earlier in this sequence)
             sampled_q_a = self._rng.uniform(
                 self._active_joint_min, self._active_joint_max
@@ -95,7 +100,7 @@ class DynamicsDataGenerator:
                 print("couldn't solve passive ik")
                 continue
 
-            print("do we ever pass")
+            print("found valid limb repo config")
 
             J_a = BaseMathDynamics.calculate_jacobian(
                 self._env.p,
@@ -114,7 +119,7 @@ class DynamicsDataGenerator:
                 np.linalg.pinv(J_p)
                 @ self._env.active_base_to_passive_base_twist
                 @ J_a
-                @ sampled_q_a
+                @ sampled_qd_a
             )
 
             self._env.set_body_state(
@@ -137,6 +142,7 @@ class DynamicsDataGenerator:
             for sampled_torque in sampled_action_array:
                 self._dynamics_model.set_state(init_limb_repo_state)
                 result_state = self._dynamics_model.step(sampled_torque)
+
                 hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_state)
 
                 collected_data += 1
