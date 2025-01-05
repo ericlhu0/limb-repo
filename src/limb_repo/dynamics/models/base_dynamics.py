@@ -4,7 +4,7 @@ import abc
 
 import omegaconf
 
-from limb_repo.structs import Action, LimbRepoEEState, LimbRepoState
+from limb_repo.structs import Action, JointState, LimbRepoEEState, LimbRepoState
 
 
 class BaseDynamics(abc.ABC):
@@ -18,9 +18,18 @@ class BaseDynamics(abc.ABC):
         """Step the dynamics model."""
 
     @abc.abstractmethod
+    def step_return_qdd(self, torques: Action) -> JointState:
+        """Step the dynamics model and return acceleration."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def get_state(self) -> LimbRepoState:
         """Get the state of the internal environment."""
 
     @abc.abstractmethod
-    def set_state(self, state: LimbRepoState, set_vel: bool) -> None:
+    def get_ee_state(self) -> LimbRepoEEState:
+        """Get the state of the end effector."""
+
+    @abc.abstractmethod
+    def set_state(self, state: LimbRepoState) -> None:
         """Set the state from which to step the dynamics model from."""

@@ -1,6 +1,5 @@
 """Utility functions."""
 
-import os
 from typing import Optional, Type, TypeVar
 
 import numpy as np

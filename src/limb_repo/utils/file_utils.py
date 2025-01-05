@@ -3,12 +3,10 @@
 import os
 import sys
 from datetime import datetime
-from typing import List
 
 import h5py
-import numpy as np
 
-from limb_repo.structs import Action, LimbRepoState
+from limb_repo.structs import Action, JointState, LimbRepoState
 
 
 def get_root_path() -> str:
@@ -54,11 +52,26 @@ class HDF5Saver:
                 print("Exiting...")
                 sys.exit(1)
 
+    # def process_limb_repo_state(
+    #     self,
+    #     state: LimbRepoState,
+    #     active_joint_min: JointState,
+    #     active_joint_max: JointState,
+    # ) -> np.ndarray:
+    #     """Normalize and circularize ."""
+    #     q_a_cos = np.cos(state.active_q)
+    #     q_a_sin = np.sin(state.active_q)
+    #     q_p_cos = np.cos(state.passive_q)
+    #     q_p_sin = np.sin(state.passive_q)
+
+    # def decode_limb_repo_state(self, state: np.ndarray) -> LimbRepoState:
+    #     return
+
     def save_demo(
         self,
         initial_state: LimbRepoState,
         torque_action: Action,
-        resulting_state: LimbRepoState,
+        result_qdd: JointState,
     ) -> None:
         """Save each result as a separate hdf5."""
 
@@ -66,7 +79,7 @@ class HDF5Saver:
         with h5py.File(path, "w") as f:
             f.create_dataset("initial_state", data=initial_state)
             f.create_dataset("torque_action", data=torque_action)
-            f.create_dataset("resulting_state", data=resulting_state)
+            f.create_dataset("result_qdd", data=result_qdd)
 
         self.datapoint_number += 1
 
