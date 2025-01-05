@@ -40,12 +40,10 @@ def test_last_state_tracking():
     new_active_state = env.get_body_state(env.active_id)
     new_active_state[new_active_state.pos_slice] += pos_diff
     new_active_state[new_active_state.vel_slice] = pos_diff / (env.dt)
-    # new_active_state[new_active_state.acc_slice] = pos_diff / ((env.dt) ** 2)
 
     new_passive_state = env.get_body_state(env.passive_id)
     new_passive_state[new_passive_state.pos_slice] += pos_diff
     new_passive_state[new_passive_state.vel_slice] = pos_diff / (env.dt)
-    # new_passive_state[new_passive_state.acc_slice] = pos_diff / ((env.dt) ** 2)
 
     env.set_body_state(env.active_id, new_active_state, set_vel=False)
     env.set_body_state(env.passive_id, new_passive_state, set_vel=False)

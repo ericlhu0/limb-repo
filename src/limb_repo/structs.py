@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TypeAlias
 
 import numpy as np
@@ -92,14 +93,14 @@ class LimbRepoState(JointState):
         obj.active_qd_slice = slice(obj.active_n_dofs, 2 * obj.active_n_dofs)
 
         obj.passive_slice = slice(
-            3 * obj.active_n_dofs, 3 * obj.active_n_dofs + 3 * obj.passive_n_dofs
+            2 * obj.active_n_dofs, 2 * obj.active_n_dofs + 2 * obj.passive_n_dofs
         )
         obj.passive_q_slice = slice(
-            3 * obj.active_n_dofs, 3 * obj.active_n_dofs + obj.passive_n_dofs
+            2 * obj.active_n_dofs, 2 * obj.active_n_dofs + obj.passive_n_dofs
         )
         obj.passive_qd_slice = slice(
-            3 * obj.active_n_dofs + obj.passive_n_dofs,
-            3 * obj.active_n_dofs + 2 * obj.passive_n_dofs,
+            2 * obj.active_n_dofs + obj.passive_n_dofs,
+            2 * obj.active_n_dofs + 2 * obj.passive_n_dofs,
         )
 
         return obj
@@ -120,7 +121,7 @@ class LimbRepoState(JointState):
     @property
     def active(self):
         """Get active pos and vel."""
-        return self[self.active_slice]
+        return BodyState(self[self.active_slice])
 
     @property
     def active_q(self):
@@ -135,7 +136,7 @@ class LimbRepoState(JointState):
     @property
     def passive(self):
         """Get passive pos and vel."""
-        return self[self.passive_slice]
+        return BodyState(self[self.passive_slice])
 
     @property
     def passive_q(self):
@@ -146,3 +147,15 @@ class LimbRepoState(JointState):
     def passive_qd(self):
         """Get passive velocity."""
         return self[self.passive_qd_slice]
+
+
+@dataclass
+class LimbRepoEEState:
+    """Limb Repositioning End Effector State."""
+
+    active_ee_pos: np.ndarray
+    active_ee_vel: np.ndarray
+    active_ee_orn: np.ndarray
+    passive_ee_pos: np.ndarray
+    passive_ee_vel: np.ndarray
+    passive_ee_orn: np.ndarray

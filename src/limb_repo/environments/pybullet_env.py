@@ -35,6 +35,8 @@ class PyBulletEnv(BaseEnv):
 
         self.p.setGravity(*config.gravity)
         self.p.setRealTimeSimulation(1 if config.real_time_simulation else 0)
+        self.p.setRealTimeSimulation(0)
+
         self.p.setTimeStep(config.dt)
         self.p.setPhysicsEngineParameter(
             constraintSolverType=self.p.CONSTRAINT_SOLVER_LCP_DANTZIG,

@@ -11,7 +11,7 @@ from limb_repo.environments.pybullet_env import (
     PyBulletConfig,
     PyBulletEnv,
 )
-from limb_repo.structs import BodyState, LimbRepoState, Pose
+from limb_repo.structs import BodyState, LimbRepoEEState, LimbRepoState, Pose
 from limb_repo.utils import pybullet_utils
 
 
@@ -27,7 +27,6 @@ class LimbRepoPyBulletConfig:
     passive_q: np.ndarray
     passive_urdf: str
     wheelchair_pose: Pose
-    # wheelchair_config: np.ndarray
     wheelchair_urdf: str
     active_ee_to_passive_ee: np.ndarray
 
@@ -42,7 +41,6 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         super().__init__(config.pybullet_config)
 
         ## Set initial values
-        print("config active urdf", self.config.keys())
         self._active_urdf: str = self.config.active_urdf
         self._active_init_base_pose = np.array(self.config.active_base_pose)
         self._active_init_base_pos = np.array(self._active_init_base_pose[:3])
@@ -74,22 +72,22 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
 
         ## Set useful rotations
         # rotates vector in active base frame to passive base frame: v_p = R @ v
-        self._active_base_to_passive_base = (
+        self.active_base_to_passive_base = (
             self._passive_init_base_orn.as_matrix().T
             @ self._active_init_base_orn.as_matrix()
         )
-        self._active_base_to_passive_base_twist = np.block(
+        self.active_base_to_passive_base_twist = np.block(
             [
-                [self._active_base_to_passive_base, np.zeros((3, 3))],
-                [np.zeros((3, 3)), self._active_base_to_passive_base],
+                [self.active_base_to_passive_base, np.zeros((3, 3))],
+                [np.zeros((3, 3)), self.active_base_to_passive_base],
             ]
         )
         # rotates active ee into passive ee, both in world frame: p_ee = R * a_ee
-        self._active_ee_to_passive_ee = self.config.active_ee_to_passive_ee
-        self._active_ee_to_passive_ee_twist = np.block(
+        self.active_ee_to_passive_ee = self.config.active_ee_to_passive_ee
+        self.active_ee_to_passive_ee_twist = np.block(
             [
-                [self._active_ee_to_passive_ee, np.zeros((3, 3))],
-                [np.zeros((3, 3)), self._active_ee_to_passive_ee],
+                [self.active_ee_to_passive_ee, np.zeros((3, 3))],
+                [np.zeros((3, 3)), self.active_ee_to_passive_ee],
             ]
         )
 
@@ -113,8 +111,8 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
             flags=self.p.URDF_USE_INERTIA_FROM_FILE,
         )
 
-        self._active_ee_link_id = self.p.getNumJoints(self.active_id) - 1
-        self._passive_ee_link_id = self.p.getNumJoints(self.passive_id) - 1
+        self.active_ee_link_id = self.p.getNumJoints(self.active_id) - 1
+        self.passive_ee_link_id = self.p.getNumJoints(self.passive_id) - 1
 
         # Configure settings for sim bodies
         self.configure_body_settings()
@@ -128,7 +126,7 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         """Step the environment."""
         self.p.stepSimulation()
 
-    def send_torques(self, torques: np.ndarray) -> None:
+    def send_torques(self, torques: np.ndarray) -> LimbRepoState:
         """Send joint torques to the active body."""
         # to use torque control, velocity control must be disabled at every time step
         prev_state = self.get_limb_repo_state()
@@ -164,12 +162,12 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
             forces=torques,
         )
 
-        print("state before stepping: ", self.get_limb_repo_state().active_qd)
         self.step()
-        print("state after stepping: ", self.get_limb_repo_state().passive_qd)
+
+        return self.get_limb_repo_state()
 
     def set_body_state(
-        self, body_id: int, state: BodyState, set_vel: bool = True
+        self, body_id: int, goal_state: BodyState, set_vel: bool = True
     ) -> None:
         """Set the states of active or passive using pos & vel from the state
         argument.
@@ -178,6 +176,10 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         the last pos.
         """
         prev_state = self.get_body_state(body_id)
+
+        if not set_vel:
+            goal_state[goal_state.vel_slice] = (goal_state.q - prev_state.q) / self.dt
+
         if body_id == self.active_id:
             self._prev_active_q = prev_state.q
             self._prev_active_qd = prev_state.qd
@@ -187,12 +189,9 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         else:
             raise ValueError("Invalid body id")
 
-        if not set_vel:
-            state[state.vel_slice] = (state.q - prev_state.q) / self.dt
-
         for i, joint_id in enumerate(pybullet_utils.get_free_joints(self.p, body_id)):
             self.p.resetJointState(
-                body_id, joint_id, state.q[i], targetVelocity=state.qd[i]
+                body_id, joint_id, goal_state.q[i], targetVelocity=goal_state.qd[i]
             )
 
     def set_limb_repo_state(self, state: LimbRepoState, set_vel: bool = True) -> None:
@@ -202,46 +201,75 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         If set_vel is False, only set pos, and vel is calculated using
         the last pos.
         """
-        self.set_body_state(state.active, self.active_id, set_vel)
-        self.set_body_state(state.passive, self.passive_id, set_vel)
+        self.set_body_state(self.active_id, state.active, set_vel)
+        self.set_body_state(self.passive_id, state.passive, set_vel)
 
     def get_body_state(self, body_id: int) -> BodyState:
         """Get the states of active or passive."""
-        pos = np.array(
+        q = np.array(
             [
                 self.p.getJointState(body_id, i)[0]
                 for i in pybullet_utils.get_free_joints(self.p, body_id)
             ]
         )
 
-        vel = np.array(
+        qd = np.array(
             [
                 self.p.getJointState(body_id, i)[1]
                 for i in pybullet_utils.get_free_joints(self.p, body_id)
             ]
         )
 
-        return BodyState(np.concatenate([pos, vel]))
+        return BodyState(np.concatenate([q, qd]))
 
     def get_limb_repo_state(self) -> LimbRepoState:
         """Get the states of active and passive."""
-        active_kinematics = self.get_body_state(self.active_id)
-        passive_kinematics = self.get_body_state(self.passive_id)
-        return LimbRepoState(np.concatenate([active_kinematics, passive_kinematics]))
+        active = self.get_body_state(self.active_id)
+        passive = self.get_body_state(self.passive_id)
+        return LimbRepoState(np.concatenate([active, passive]))
+
+    def get_limb_repo_ee_state(self) -> LimbRepoEEState:
+        """Get the states of active and passive ee.
+
+        Returns:
+        active_ee_pos, active_ee_vel, active_ee_orn,
+        passive_ee_pos, passive_ee_vel, passive_ee_orn.
+        """
+        active_ee_state = self.p.getLinkState(
+            self.active_id, self.active_ee_link_id, computeLinkVelocity=1
+        )
+        passive_ee_state = self.p.getLinkState(
+            self.passive_id, self.passive_ee_link_id, computeLinkVelocity=1
+        )
+        active_ee_pos = active_ee_state[0]  # [0] and [4] are the same
+        active_ee_vel = active_ee_state[6]
+        active_ee_orn = R.from_quat(active_ee_state[1]).as_matrix()
+        passive_ee_pos = passive_ee_state[0]
+        passive_ee_vel = passive_ee_state[6]
+        passive_ee_orn = R.from_quat(passive_ee_state[1]).as_matrix()
+
+        return LimbRepoEEState(
+            active_ee_pos,
+            active_ee_vel,
+            active_ee_orn,
+            passive_ee_pos,
+            passive_ee_vel,
+            passive_ee_orn,
+        )
 
     def set_limb_repo_constraint(self) -> None:
         """Create grasp constraint between active and passive ee."""
         self._cid = self.p.createConstraint(
             self.active_id,
-            self._active_ee_link_id,
+            self.active_ee_link_id,
             self.passive_id,
-            self._passive_ee_link_id,
+            self.passive_ee_link_id,
             self.p.JOINT_FIXED,
             [0, 0, 0],
             [0, 0, 0],
             [0, 0, 0],
             [0, 0, 0, 1],
-            R.from_matrix(self._active_ee_to_passive_ee).as_quat(),
+            R.from_matrix(self.active_ee_to_passive_ee).as_quat(),
         )
 
     def configure_body_settings(self) -> None:
@@ -270,15 +298,6 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
             mask = 0
             for linkIndex in range(self.p.getNumJoints(self.passive_id)):
                 self.p.setCollisionFilterGroupMask(body_id, linkIndex, group, mask)
-
-            # # apply velocity control to panda arm to make it stationary
-            # for i in range(self._active_n_dofs):
-            #     self.p.setJointMotorControl2(
-            #         body_id, i, self.p.VELOCITY_CONTROL, targetVelocity=0, force=50
-            #     )
-
-            # for i in range(1000):
-            #     self.p.stepSimulation()
 
             # enable force torque
             for joint in range(self.p.getNumJoints(body_id)):

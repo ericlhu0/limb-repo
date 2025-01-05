@@ -142,6 +142,11 @@ if __name__ == "__main__":
     nd_state = np.array([state, state, state])
     print(nd_state[:, state.passive_acc])
 
+    state[state.passive_kinematics] = 0
+    # [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17  0  0  0  0  0  0
+    #   0  0  0  0  0  0  0  0  0  0  0  0]
+    print(state)
+
     # Subclassing Testing
     a = np.array([1, 2, 3])
     b = SubclassWithoutArrayFinalize(a, info="b")
