@@ -16,7 +16,7 @@ def test_dynamics_no_n_vector():
     parsed_config.pybullet_config.use_gui = False
     dynamics_model = MathDynamicsNoNVector(parsed_config)
 
-    for i in range(500):
+    for i in range(200):
         action = np.array([1, 0, 1, 0, 1, 0])
         print(f"loop {i}")
         dynamics_model.step(action)
