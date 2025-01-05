@@ -27,7 +27,7 @@ math_dynamics_nvec = []
 pybullet_dynamics = []
 
 for i in range(1000):
-    action = np.random.rand(6)
+    action = np.random.rand(6) * 0.5
     print(f"loop {i}")
     next_state = dynamics_model.step(action)
     next_state_nvec = dynamics_model_nvec.step(action)
@@ -38,9 +38,9 @@ for i in range(1000):
     pybullet_dynamics.append(pybullet_next_state.active_q)
     time_steps.append(i)
 
-plt.plot(time_steps, np.array(math_dynamics)[:, 2], label="math_dynamics")
-plt.plot(time_steps, np.array(math_dynamics_nvec)[:, 2], label="math_dynamics_nvec")
-plt.plot(time_steps, np.array(pybullet_dynamics)[:, 2], label="pybullet_dynamics")
+plt.plot(time_steps, np.array(math_dynamics)[:], label="math_dynamics")
+plt.plot(time_steps, np.array(math_dynamics_nvec)[:], label="math_dynamics_nvec")
+plt.plot(time_steps, np.array(pybullet_dynamics)[:], label="pybullet_dynamics")
 plt.xlabel("Time step")
 plt.ylabel("robot second joint position")
 plt.legend()

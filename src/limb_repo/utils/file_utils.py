@@ -61,14 +61,12 @@ class HDF5Saver:
         resulting_state: LimbRepoState,
     ) -> None:
         """Save each result as a separate hdf5."""
-        print("when is this called")
 
         path = os.path.join(self.temp_dir, f"{self.datapoint_number}.hdf5")
         with h5py.File(path, "w") as f:
-            g = f.create_group("demo")
-            g.create_dataset("initial_state", data=initial_state)
-            g.create_dataset("torque_actions", data=torque_action)
-            g.create_dataset("resulting_states", data=np.array([resulting_state]))
+            f.create_dataset("initial_state", data=initial_state)
+            f.create_dataset("torque_action", data=torque_action)
+            f.create_dataset("resulting_state", data=resulting_state)
 
         self.datapoint_number += 1
 

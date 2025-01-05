@@ -50,28 +50,27 @@ class BaseMathDynamics(BaseDynamics):
         R: np.ndarray,
     ) -> LimbRepoState:
         """Apply active acceleration to the environment."""
-        vel_a = qd_a_i + qdd_a * self.dt
-        lin_vel_a = Jr @ vel_a
-        lin_vel_p = R @ lin_vel_a
-        vel_p = Jhinv @ lin_vel_p
 
-        pos_a = q_a_i + vel_a * self.dt
-        pos_p = q_p_i + vel_p * self.dt
+        qd_a = qd_a_i + qdd_a * self.dt
+        qd_p = Jhinv @ R @ Jr @ qd_a
 
-        resulting_state = LimbRepoState(np.concatenate([pos_a, vel_a, pos_p, vel_p]))
+        q_a = q_a_i + qd_a * self.dt
+        q_p = q_p_i + qd_p * self.dt
+
+        resulting_state = LimbRepoState(np.concatenate([q_a, qd_a, q_p, qd_p]))
 
         self.env.set_limb_repo_state(resulting_state)
 
-        return LimbRepoState(resulting_state)
+        return resulting_state
 
     def get_state(self) -> LimbRepoState:
         """Get the state of the dynamics model."""
         return self.env.get_limb_repo_state()
 
-    def set_state(self, state: LimbRepoState, set_vel: bool = True) -> None:
+    def set_state(self, state: LimbRepoState) -> None:
         """Set the state of the dynamics model."""
         self.current_state = state
-        self.env.set_limb_repo_state(state, set_vel)
+        self.env.set_limb_repo_state(state)
 
     @staticmethod
     def calculate_jacobian(
