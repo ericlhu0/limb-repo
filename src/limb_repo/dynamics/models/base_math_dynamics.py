@@ -69,6 +69,7 @@ class BaseMathDynamics(BaseDynamics):
 
     def set_state(self, state: LimbRepoState, set_vel: bool = True) -> None:
         """Set the state of the dynamics model."""
+        self.current_state = state
         self.env.set_limb_repo_state(state, set_vel)
 
     @staticmethod

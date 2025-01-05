@@ -66,22 +66,6 @@ class MathDynamicsNoNVector(BaseMathDynamics):
 
         qdd_a = term1 @ term2
 
-        ###### Recreating equation using n vector with pinocchio values
-
-        # Nr = Cr @ qd_a_i + gr
-        # Nh = Ch @ qd_p_i + gh
-
-        # qdd_a = np.linalg.pinv((Jhinv @ R @ -Jr).T @ Mh @ (Jhinv @ R @ Jr) - Mr) @ (
-        #     (Jhinv @ R @ Jr).T
-        #     @ (
-        #         Mh * (1 / self.dt) @ (Jhinv @ R @ Jr) @ qd_a_i
-        #         - Mh * (1 / self.dt) @ qd_p_i
-        #         + Nh
-        #     )
-        #     + Nr
-        #     - np.array(torques)
-        # )
-
         self.current_state = self.apply_active_acceleration(
             qdd_a, q_a_i, qd_a_i, q_p_i, Jr, Jhinv, R
         )
