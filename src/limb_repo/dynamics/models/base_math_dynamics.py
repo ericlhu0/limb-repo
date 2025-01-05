@@ -9,7 +9,7 @@ import pybullet_utils.bullet_client as bc
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
-from limb_repo.structs import Action, JointState, LimbRepoState
+from limb_repo.structs import Action, JointState, LimbRepoEEState, LimbRepoState
 from limb_repo.utils import pinocchio_utils
 
 
@@ -36,6 +36,11 @@ class BaseMathDynamics(BaseDynamics):
     @abc.abstractmethod
     def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def step_return_qdd(self, torques: Action) -> JointState:
+        """Step the dynamics model and return acceleration."""
         raise NotImplementedError()
 
     # pylint: disable=too-many-positional-arguments
@@ -67,6 +72,10 @@ class BaseMathDynamics(BaseDynamics):
         """Get the state of the dynamics model."""
         return self.env.get_limb_repo_state()
 
+    def get_ee_state(self) -> LimbRepoEEState:
+        """Get the state of the dynamics model."""
+        return self.env.get_limb_repo_ee_state()
+
     def set_state(self, state: LimbRepoState) -> None:
         """Set the state of the dynamics model."""
         self.current_state = state
@@ -76,6 +85,7 @@ class BaseMathDynamics(BaseDynamics):
     def calculate_jacobian(
         p: bc.BulletClient, body_id: int, ee_link_id: int, joint_positions: JointState
     ) -> np.ndarray:
+        """Calculate the jacobian of a body in a Pybullet sim."""
         jac_t, jac_r = p.calculateJacobian(
             body_id,
             ee_link_id,
@@ -90,6 +100,7 @@ class BaseMathDynamics(BaseDynamics):
     def calculate_mass_matrix(
         body_model: pin.Model, body_data: pin.Data, joint_positions: JointState
     ) -> np.ndarray:
+        """Calculate the mass matrix of a body in a Pinocchio sim."""
         joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
             joint_positions, body_model
         )
@@ -99,6 +110,7 @@ class BaseMathDynamics(BaseDynamics):
     def calculate_gravity_vector(
         body_model: pin.Model, body_data: pin.Data, joint_positions: JointState
     ) -> np.ndarray:
+        """Calculate the gravity vector of a body in a Pinocchio sim."""
         joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
             joint_positions, body_model
         )
@@ -111,6 +123,7 @@ class BaseMathDynamics(BaseDynamics):
         joint_positions: JointState,
         joint_velocities: JointState,
     ) -> np.ndarray:
+        """Calculate the coriolis matrix of a body in a Pinocchio sim."""
         joint_positions_pin = pinocchio_utils.joint_array_to_pinocchio(
             joint_positions, body_model
         )

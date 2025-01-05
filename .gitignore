@@ -3,6 +3,7 @@
 multirun/
 outputs/
 playground/out/
+_out/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

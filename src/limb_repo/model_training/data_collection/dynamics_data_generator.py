@@ -7,10 +7,9 @@ import numpy as np
 import pybullet
 import pybullet_utils.bullet_client as bc
 from pybullet_helpers.robots.human import HumanArm6DoF
-from pybullet_helpers.robots.panda import PandaPybulletRobotLimbRepo
 from scipy.spatial.transform import Rotation as R
 
-from limb_repo.dynamics.checks import check_ee_kinematics
+from limb_repo.dynamics.checks.check_ee_kinematics import check_ee_kinematics
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.dynamics.models.base_math_dynamics import BaseMathDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
@@ -54,10 +53,28 @@ class DynamicsDataGenerator:
         self._MIN_INIT_QD = -1
         self._MAX_INIT_QD = 1
 
-    def check_valid_active_config():
-        """Check if this sampled active config is gives a valid limb repo
-        config."""
-        pass
+    def find_passive_config(self, init_active_state: BodyState) -> Optional[JointState]:
+        """Return passive joint config given active state if solvable,
+        otherwise return None."""
+        self._env.set_body_state(self._env.active_id, init_active_state)
+
+        # try to solve ik for human ee to be at the active ee
+        sim_ee_state = self._env.get_limb_repo_ee_state()
+        passive_ee_goal_pos = sim_ee_state.active_ee_pos
+        passive_ee_goal_orn = (
+            self._env.active_ee_to_passive_ee
+            @ R.from_quat(sim_ee_state.active_ee_orn).as_matrix()
+        )
+        passive_ee_goal_pose = np.concatenate(
+            [passive_ee_goal_pos, R.as_quat(R.from_matrix(passive_ee_goal_orn))]
+        )
+        solved_q_p = utils.inverse_kinematics(
+            self.pybullet_helpers_human,
+            passive_ee_goal_pose,
+            self._env.passive_init_base_pose,
+        )
+
+        return solved_q_p
 
     def generate_data(
         self,
@@ -79,28 +96,10 @@ class DynamicsDataGenerator:
             )
 
             init_active_state = BodyState(np.concatenate([sampled_q_a, sampled_qd_a]))
-            self._env.set_body_state(self._env.active_id, init_active_state)
+            solved_q_p = self.find_passive_config(init_active_state)
 
-            # try to solve ik for human ee to be at the active ee
-            sim_ee_state = self._env.get_limb_repo_ee_state()
-            passive_ee_goal_pos = sim_ee_state.active_ee_pos
-            passive_ee_goal_orn = (
-                self._env.active_ee_to_passive_ee
-                @ R.from_quat(sim_ee_state.active_ee_orn).as_matrix()
-            )
-            passive_ee_goal_pose = np.concatenate(
-                [passive_ee_goal_pos, R.as_quat(R.from_matrix(passive_ee_goal_orn))]
-            )
-            solved_q_p = utils.inverse_kinematics(
-                self.pybullet_helpers_human,
-                passive_ee_goal_pose,
-                self._env.passive_init_base_pose,
-            )
             if solved_q_p is None:
-                print("couldn't solve passive ik")
                 continue
-
-            print("found valid limb repo config")
 
             J_a = BaseMathDynamics.calculate_jacobian(
                 self._env.p,
@@ -141,9 +140,15 @@ class DynamicsDataGenerator:
 
             for sampled_torque in sampled_action_array:
                 self._dynamics_model.set_state(init_limb_repo_state)
-                result_state = self._dynamics_model.step(sampled_torque)
+                result_qdd = self._dynamics_model.step_return_qdd(sampled_torque)
 
-                hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_state)
+                if not check_ee_kinematics(
+                    self._dynamics_model.get_ee_state(),
+                    self._env.active_ee_to_passive_ee,
+                ):
+                    break
+
+                hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_qdd)
 
                 collected_data += 1
                 if collected_data >= num_datapoints:
