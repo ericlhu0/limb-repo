@@ -61,8 +61,8 @@ class DynamicsDataGenerator:
         # try to solve ik for human ee to be at the active ee
         sim_ee_state = self._env.get_limb_repo_ee_state()
         passive_ee_goal_pos = sim_ee_state.active_ee_pos
-        passive_ee_goal_orn = (
-            R.from_quat(sim_ee_state.active_ee_orn) * R.from_matrix(self._env.active_ee_to_passive_ee)
+        passive_ee_goal_orn = R.from_quat(sim_ee_state.active_ee_orn) * R.from_matrix(
+            self._env.active_ee_to_passive_ee
         )
         passive_ee_goal_pose = np.concatenate(
             [passive_ee_goal_pos, passive_ee_goal_orn.as_quat()]
@@ -137,18 +137,22 @@ class DynamicsDataGenerator:
                 np.concatenate([sampled_q_a, sampled_qd_a, solved_q_p, solved_qd_p])
             )
 
+            print(init_limb_repo_state)
+
             for sampled_torque in sampled_action_array:
                 self._dynamics_model.set_state(init_limb_repo_state)
-                result_qdd = self._dynamics_model.step_return_qdd(sampled_torque)
+                resulting_state = self._dynamics_model.step(sampled_torque)
+                result_qdd_a = (resulting_state.active_qd - init_limb_repo_state.active_qd) / self._env.dt
+                result_qdd_p = (resulting_state.passive_qd - init_limb_repo_state.passive_qd) / self._env.dt
 
                 if not check_ee_kinematics(
                     self._dynamics_model.get_ee_state(),
                     self._env.active_ee_to_passive_ee,
-                    debug=True
+                    debug=True,
                 ):
                     break
 
-                hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_qdd)
+                hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_qdd_a, result_qdd_p)
 
                 collected_data += 1
                 if collected_data >= num_datapoints:

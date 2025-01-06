@@ -38,11 +38,6 @@ class BaseMathDynamics(BaseDynamics):
         """Step the dynamics model."""
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def step_return_qdd(self, torques: Action) -> JointState:
-        """Step the dynamics model and return acceleration."""
-        raise NotImplementedError()
-
     # pylint: disable=too-many-positional-arguments
     def apply_active_acceleration(
         self,
