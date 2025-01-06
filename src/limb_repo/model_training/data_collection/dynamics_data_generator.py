@@ -62,11 +62,10 @@ class DynamicsDataGenerator:
         sim_ee_state = self._env.get_limb_repo_ee_state()
         passive_ee_goal_pos = sim_ee_state.active_ee_pos
         passive_ee_goal_orn = (
-            self._env.active_ee_to_passive_ee
-            @ R.from_quat(sim_ee_state.active_ee_orn).as_matrix()
+            R.from_quat(sim_ee_state.active_ee_orn) * R.from_matrix(self._env.active_ee_to_passive_ee)
         )
         passive_ee_goal_pose = np.concatenate(
-            [passive_ee_goal_pos, R.as_quat(R.from_matrix(passive_ee_goal_orn))]
+            [passive_ee_goal_pos, passive_ee_goal_orn.as_quat()]
         )
         solved_q_p = utils.inverse_kinematics(
             self.pybullet_helpers_human,
@@ -145,6 +144,7 @@ class DynamicsDataGenerator:
                 if not check_ee_kinematics(
                     self._dynamics_model.get_ee_state(),
                     self._env.active_ee_to_passive_ee,
+                    debug=True
                 ):
                     break
 
