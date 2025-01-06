@@ -8,43 +8,69 @@ from limb_repo.structs import Action, JointState, LimbRepoState
 
 class MathDynamicsNoNVector(BaseMathDynamics):
     """Dynamics Model Using Math Formulation With N Vector."""
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        self.R = self.env.active_base_to_passive_base_twist
+
+        self.q_a_i = self.current_state.active_q
+        self.qd_a_i = self.current_state.active_qd
+        self.q_p_i = self.current_state.passive_q
+        self.qd_p_i = self.current_state.passive_qd
+
+        self.Jr = self.calculate_jacobian(
+            self.env.p, self.env.active_id, self.env.active_ee_link_id, self.q_a_i
+        )
+        self.Mr = self.calculate_mass_matrix(self.active_model, self.active_data, self.q_a_i)
+        self.gr = self.calculate_gravity_vector(self.active_model, self.active_data, self.q_a_i)
+        self.Cr = self.calculate_coriolis_matrix(
+            self.active_model, self.active_data, self.q_a_i, self.qd_a_i
+        )
+
+        self.Jh = self.calculate_jacobian(
+            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, self.q_p_i
+        )
+        self.Jhinv = np.linalg.pinv(self.Jh)
+        self.Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, self.q_p_i)
+        self.gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, self.q_p_i)
+        self.Ch = self.calculate_coriolis_matrix(
+            self.passive_model, self.passive_data, self.q_p_i, self.qd_p_i
+        )
 
     def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
         current_state = self.current_state
-        q_a_i = current_state.active_q
-        qd_a_i = current_state.active_qd
-        q_p_i = current_state.passive_q
-        qd_p_i = current_state.passive_qd
+        self.q_a_i = current_state.active_q
+        self.qd_a_i = current_state.active_qd
+        self.q_p_i = current_state.passive_q
+        self.qd_p_i = current_state.passive_qd
 
-        R = self.env.active_base_to_passive_base_twist
 
-        assert np.allclose(R, R.T)
-        assert np.allclose(R, np.linalg.pinv(R))
+        assert np.allclose(self.R, self.R.T)
+        assert np.allclose(self.R, np.linalg.pinv(self.R))
 
         Jr = self.calculate_jacobian(
-            self.env.p, self.env.active_id, self.env.active_ee_link_id, q_a_i
+            self.env.p, self.env.active_id, self.env.active_ee_link_id, self.q_a_i
         )
-        Mr = self.calculate_mass_matrix(self.active_model, self.active_data, q_a_i)
-        gr = self.calculate_gravity_vector(self.active_model, self.active_data, q_a_i)
+        Mr = self.calculate_mass_matrix(self.active_model, self.active_data, self.q_a_i)
+        gr = self.calculate_gravity_vector(self.active_model, self.active_data, self.q_a_i)
         Cr = self.calculate_coriolis_matrix(
-            self.active_model, self.active_data, q_a_i, qd_a_i
+            self.active_model, self.active_data, self.q_a_i, self.qd_a_i
         )
 
         Jh = self.calculate_jacobian(
-            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, q_p_i
+            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, self.q_p_i
         )
         Jhinv = np.linalg.pinv(Jh)
-        Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, q_p_i)
-        gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, q_p_i)
+        Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, self.q_p_i)
+        gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, self.q_p_i)
         Ch = self.calculate_coriolis_matrix(
-            self.passive_model, self.passive_data, q_p_i, qd_p_i
+            self.passive_model, self.passive_data, self.q_p_i, self.qd_p_i
         )
 
         ##### Using most simplified no n vector equation from the document
 
         term1 = np.linalg.pinv(
-            Jr.T @ R @ np.linalg.pinv(Jh.T) @ (Mh + (Ch * self.dt)) @ Jhinv @ R @ Jr
+            Jr.T @ self.R @ np.linalg.pinv(Jh.T) @ (Mh + (Ch * self.dt)) @ Jhinv @ self.R @ Jr
             + Mr
             + Cr * self.dt
         )
@@ -52,77 +78,20 @@ class MathDynamicsNoNVector(BaseMathDynamics):
         term2 = (
             torques
             - Jr.T
-            @ R
+            @ self.R
             @ np.linalg.pinv(Jh.T)
             @ (
-                (((Mh * (1 / self.dt)) + Ch) @ Jhinv @ R @ Jr @ qd_a_i)
-                - ((Mh * (1 / self.dt)) @ qd_p_i + gh)
+                (((Mh * (1 / self.dt)) + Ch) @ Jhinv @ self.R @ Jr @ self.qd_a_i)
+                - ((Mh * (1 / self.dt)) @ self.qd_p_i + gh)
             )
-            - Cr @ qd_a_i
+            - Cr @ self.qd_a_i
             - gr
         )
 
         qdd_a = term1 @ term2
 
         self.current_state = self.apply_active_acceleration(
-            qdd_a, q_a_i, qd_a_i, q_p_i, Jr, Jhinv, R
+            qdd_a, self.q_a_i, self.qd_a_i, self.q_p_i, Jr, Jhinv, self.R
         )
 
         return self.current_state
-
-    def step_return_qdd(self, torques: Action) -> JointState:
-        """Step the dynamics model."""
-        current_state = self.current_state
-        q_a_i = current_state.active_q
-        qd_a_i = current_state.active_qd
-        q_p_i = current_state.passive_q
-        qd_p_i = current_state.passive_qd
-
-        R = self.env.active_base_to_passive_base_twist
-
-        assert np.allclose(R, R.T)
-        assert np.allclose(R, np.linalg.pinv(R))
-
-        Jr = self.calculate_jacobian(
-            self.env.p, self.env.active_id, self.env.active_ee_link_id, q_a_i
-        )
-        Mr = self.calculate_mass_matrix(self.active_model, self.active_data, q_a_i)
-        gr = self.calculate_gravity_vector(self.active_model, self.active_data, q_a_i)
-        Cr = self.calculate_coriolis_matrix(
-            self.active_model, self.active_data, q_a_i, qd_a_i
-        )
-
-        Jh = self.calculate_jacobian(
-            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, q_p_i
-        )
-        Jhinv = np.linalg.pinv(Jh)
-        Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, q_p_i)
-        gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, q_p_i)
-        Ch = self.calculate_coriolis_matrix(
-            self.passive_model, self.passive_data, q_p_i, qd_p_i
-        )
-
-        ##### Using most simplified no n vector equation from the document
-
-        term1 = np.linalg.pinv(
-            Jr.T @ R @ np.linalg.pinv(Jh.T) @ (Mh + (Ch * self.dt)) @ Jhinv @ R @ Jr
-            + Mr
-            + Cr * self.dt
-        )
-
-        term2 = (
-            torques
-            - Jr.T
-            @ R
-            @ np.linalg.pinv(Jh.T)
-            @ (
-                (((Mh * (1 / self.dt)) + Ch) @ Jhinv @ R @ Jr @ qd_a_i)
-                - ((Mh * (1 / self.dt)) @ qd_p_i + gh)
-            )
-            - Cr @ qd_a_i
-            - gr
-        )
-
-        qdd_a = term1 @ term2
-
-        return qdd_a

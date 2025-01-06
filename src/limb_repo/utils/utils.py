@@ -29,7 +29,9 @@ def parse_config(path_to_yaml: str, config_class: Type[T]) -> omegaconf.DictConf
 
 
 def inverse_kinematics(
-    robot: SingleArmPyBulletRobot, world_frame_passive_ee_goal_pose: Pose, world_frame_passive_base_pose: Pose
+    robot: SingleArmPyBulletRobot,
+    world_frame_passive_ee_goal_pose: Pose,
+    world_frame_passive_base_pose: Pose,
 ) -> Optional[JointState]:
     """IK using pybullet_helpers."""
 
@@ -39,9 +41,13 @@ def inverse_kinematics(
     world_frame_passive_base_orn = R.from_quat(world_frame_passive_base_pose[3:])
 
     base_frame_passive_ee_goal_pos = tuple(
-        world_frame_passive_base_orn.inv().apply(world_frame_passive_ee_goal_pos - world_frame_passive_base_pos)
+        world_frame_passive_base_orn.inv().apply(
+            world_frame_passive_ee_goal_pos - world_frame_passive_base_pos
+        )
     )
-    base_frame_passive_ee_goal_orn = tuple(R.as_quat(world_frame_passive_base_orn * world_frame_passive_ee_goal_orn))
+    base_frame_passive_ee_goal_orn = tuple(
+        R.as_quat(world_frame_passive_base_orn * world_frame_passive_ee_goal_orn)
+    )
     base_frame_passive_ee_goal_pose = pybullet_helpers.geometry.Pose(
         base_frame_passive_ee_goal_pos, base_frame_passive_ee_goal_orn
     )

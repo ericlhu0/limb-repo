@@ -1,15 +1,16 @@
-"""Base Dynamics Model."""
+"""Base dynamics model that uses a simulator."""
 
 import abc
 
 import omegaconf
 import torch
 
+from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.structs import Action, JointState, LimbRepoEEState, LimbRepoState
 
 
-class BaseDynamics(abc.ABC):
-    """Abstract Base Dynamics Model."""
+class BaseDynamicsWithSim(BaseDynamics):
+    """Base dynamics model that uses a simulator."""
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
         self.config = config
