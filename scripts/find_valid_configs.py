@@ -55,7 +55,3 @@ if __name__ == "__main__":
     print(len(valid_configs))
 
     np.save("out/valid_configs.npy", np.array(valid_configs))
-
-    # data_generator.generate_data(
-    #     10, to_abs_path("out/test.hdf5"), to_abs_path("out/temp/")
-    # )
