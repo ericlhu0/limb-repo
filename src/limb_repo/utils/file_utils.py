@@ -100,24 +100,34 @@ class HDF5Saver:
     def combine_temp_hdf5s(self) -> None:
         """Combine all temp hdf5s into one."""
 
-        hdf5_files = self.find_hdf5_files(self.tmp_dir)
-        num_files = len(hdf5_files)
+        # hdf5_files = self.find_hdf5_files(self.tmp_dir)
+        num_files = 7500000
+
+        data_dirs = ["01-06_22-59-51", "01-06_23-02-39", "01-06_23-03-58"]
 
         keys = []
         data_shapes = {}
 
-        with h5py.File(hdf5_files[0], "r") as f:
+        with h5py.File(os.path.join(self.tmp_dir, data_dirs[0], "0.hdf5"), "r") as f:
             for key in f.keys():
                 data_shapes[key] = f[key].shape
                 keys.append(key)
+
+        print(keys, data_shapes)
 
         with h5py.File(self.final_file_path, "w") as f:
             for key in keys:
                 f.create_dataset(key, shape=(num_files, *data_shapes[key]))
 
-            for i, file in enumerate(hdf5_files):
-                with h5py.File(file, "r") as temp_f:
-                    for key in keys:
-                        f[key][i] = temp_f[key]
+            for data_dir in data_dirs:
+                for i in range(num_files // len(data_dirs)):
+                    print("               i", i)
+                    print("datapoint number", self.datapoint_number)
+                    file = os.path.join(self.tmp_dir, data_dir, f"{i}.hdf5")
+                    with h5py.File(file, "r") as temp_f:
+                        for key in keys:
+                            f[key][self.datapoint_number] = temp_f[key]
+                    
+                    self.datapoint_number += 1
                     
         print(f"Saved to {self.final_file_path}")

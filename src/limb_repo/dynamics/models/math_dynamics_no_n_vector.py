@@ -8,6 +8,7 @@ from limb_repo.structs import Action, JointState, LimbRepoState
 
 class MathDynamicsNoNVector(BaseMathDynamics):
     """Dynamics Model Using Math Formulation With N Vector."""
+
     def __init__(self, config) -> None:
         super().__init__(config)
         self.R = self.env.active_base_to_passive_base_twist
@@ -20,8 +21,12 @@ class MathDynamicsNoNVector(BaseMathDynamics):
         self.Jr = self.calculate_jacobian(
             self.env.p, self.env.active_id, self.env.active_ee_link_id, self.q_a_i
         )
-        self.Mr = self.calculate_mass_matrix(self.active_model, self.active_data, self.q_a_i)
-        self.gr = self.calculate_gravity_vector(self.active_model, self.active_data, self.q_a_i)
+        self.Mr = self.calculate_mass_matrix(
+            self.active_model, self.active_data, self.q_a_i
+        )
+        self.gr = self.calculate_gravity_vector(
+            self.active_model, self.active_data, self.q_a_i
+        )
         self.Cr = self.calculate_coriolis_matrix(
             self.active_model, self.active_data, self.q_a_i, self.qd_a_i
         )
@@ -30,8 +35,12 @@ class MathDynamicsNoNVector(BaseMathDynamics):
             self.env.p, self.env.passive_id, self.env.passive_ee_link_id, self.q_p_i
         )
         self.Jhinv = np.linalg.pinv(self.Jh)
-        self.Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, self.q_p_i)
-        self.gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, self.q_p_i)
+        self.Mh = self.calculate_mass_matrix(
+            self.passive_model, self.passive_data, self.q_p_i
+        )
+        self.gh = self.calculate_gravity_vector(
+            self.passive_model, self.passive_data, self.q_p_i
+        )
         self.Ch = self.calculate_coriolis_matrix(
             self.passive_model, self.passive_data, self.q_p_i, self.qd_p_i
         )
@@ -44,7 +53,6 @@ class MathDynamicsNoNVector(BaseMathDynamics):
         self.q_p_i = current_state.passive_q
         self.qd_p_i = current_state.passive_qd
 
-
         assert np.allclose(self.R, self.R.T)
         assert np.allclose(self.R, np.linalg.pinv(self.R))
 
@@ -52,7 +60,9 @@ class MathDynamicsNoNVector(BaseMathDynamics):
             self.env.p, self.env.active_id, self.env.active_ee_link_id, self.q_a_i
         )
         Mr = self.calculate_mass_matrix(self.active_model, self.active_data, self.q_a_i)
-        gr = self.calculate_gravity_vector(self.active_model, self.active_data, self.q_a_i)
+        gr = self.calculate_gravity_vector(
+            self.active_model, self.active_data, self.q_a_i
+        )
         Cr = self.calculate_coriolis_matrix(
             self.active_model, self.active_data, self.q_a_i, self.qd_a_i
         )
@@ -61,8 +71,12 @@ class MathDynamicsNoNVector(BaseMathDynamics):
             self.env.p, self.env.passive_id, self.env.passive_ee_link_id, self.q_p_i
         )
         Jhinv = np.linalg.pinv(Jh)
-        Mh = self.calculate_mass_matrix(self.passive_model, self.passive_data, self.q_p_i)
-        gh = self.calculate_gravity_vector(self.passive_model, self.passive_data, self.q_p_i)
+        Mh = self.calculate_mass_matrix(
+            self.passive_model, self.passive_data, self.q_p_i
+        )
+        gh = self.calculate_gravity_vector(
+            self.passive_model, self.passive_data, self.q_p_i
+        )
         Ch = self.calculate_coriolis_matrix(
             self.passive_model, self.passive_data, self.q_p_i, self.qd_p_i
         )
@@ -70,7 +84,13 @@ class MathDynamicsNoNVector(BaseMathDynamics):
         ##### Using most simplified no n vector equation from the document
 
         term1 = np.linalg.pinv(
-            Jr.T @ self.R @ np.linalg.pinv(Jh.T) @ (Mh + (Ch * self.dt)) @ Jhinv @ self.R @ Jr
+            Jr.T
+            @ self.R
+            @ np.linalg.pinv(Jh.T)
+            @ (Mh + (Ch * self.dt))
+            @ Jhinv
+            @ self.R
+            @ Jr
             + Mr
             + Cr * self.dt
         )
