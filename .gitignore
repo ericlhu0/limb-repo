@@ -6,6 +6,8 @@ playground/out/
 _out/
 _the_good_stuff/
 out/
+wandb/
+*.pth
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
