@@ -81,10 +81,10 @@ class LearnedDynamics(BaseDynamics):
                     torch.cos(self.q_p),
                     self.qd_p,
                 ],
-                axis=-1
+                axis=-1,
             )
         )
-        
+
         qdd = self.model(input_feature)
         qdd_a = qdd[:, : self.active_n_dofs]
         qdd_p = qdd[:, self.active_n_dofs :]

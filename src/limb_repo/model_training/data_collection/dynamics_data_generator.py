@@ -137,24 +137,29 @@ class DynamicsDataGenerator:
                 np.concatenate([sampled_q_a, sampled_qd_a, solved_q_p, solved_qd_p])
             )
 
-            print(init_limb_repo_state)
-
             for sampled_torque in sampled_action_array:
                 self._dynamics_model.set_state(init_limb_repo_state)
                 resulting_state = self._dynamics_model.step(sampled_torque)
-                result_qdd_a = (resulting_state.active_qd - init_limb_repo_state.active_qd) / self._env.dt
-                result_qdd_p = (resulting_state.passive_qd - init_limb_repo_state.passive_qd) / self._env.dt
+                result_qdd_a = (
+                    resulting_state.active_qd - init_limb_repo_state.active_qd
+                ) / self._env.dt
+                result_qdd_p = (
+                    resulting_state.passive_qd - init_limb_repo_state.passive_qd
+                ) / self._env.dt
 
                 if not check_ee_kinematics(
                     self._dynamics_model.get_ee_state(),
                     self._env.active_ee_to_passive_ee,
-                    debug=True,
+                    # debug=True,
                 ):
                     break
 
-                hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_qdd_a, result_qdd_p)
+                hdf5_saver.save_demo(
+                    init_limb_repo_state, sampled_torque, result_qdd_a, result_qdd_p
+                )
 
                 collected_data += 1
+                print(collected_data)
                 if collected_data >= num_datapoints:
                     break
 
