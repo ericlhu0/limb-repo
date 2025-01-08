@@ -19,7 +19,9 @@ dependencies = [
    "pybullet_helpers@git+https://github.com/ericlhu0/pybullet-helpers",
    "pybullet",
    "pin",
-   "h5py"
+   "h5py",
+   "wandb",
+   "torch"
 ]
 
 [project.optional-dependencies]

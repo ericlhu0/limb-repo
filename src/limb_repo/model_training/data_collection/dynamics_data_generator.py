@@ -142,8 +142,12 @@ class DynamicsDataGenerator:
             for sampled_torque in sampled_action_array:
                 self._dynamics_model.set_state(init_limb_repo_state)
                 resulting_state = self._dynamics_model.step(sampled_torque)
-                result_qdd_a = (resulting_state.active_qd - init_limb_repo_state.active_qd) / self._env.dt
-                result_qdd_p = (resulting_state.passive_qd - init_limb_repo_state.passive_qd) / self._env.dt
+                result_qdd_a = (
+                    resulting_state.active_qd - init_limb_repo_state.active_qd
+                ) / self._env.dt
+                result_qdd_p = (
+                    resulting_state.passive_qd - init_limb_repo_state.passive_qd
+                ) / self._env.dt
 
                 if not check_ee_kinematics(
                     self._dynamics_model.get_ee_state(),
@@ -152,7 +156,9 @@ class DynamicsDataGenerator:
                 ):
                     break
 
-                hdf5_saver.save_demo(init_limb_repo_state, sampled_torque, result_qdd_a, result_qdd_p)
+                hdf5_saver.save_demo(
+                    init_limb_repo_state, sampled_torque, result_qdd_a, result_qdd_p
+                )
 
                 collected_data += 1
                 if collected_data >= num_datapoints:

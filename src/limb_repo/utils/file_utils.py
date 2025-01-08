@@ -4,8 +4,8 @@ import os
 import sys
 from datetime import datetime
 
-import numpy as np
 import h5py
+import numpy as np
 
 from limb_repo.structs import Action, JointState, LimbRepoState
 
@@ -82,7 +82,9 @@ class HDF5Saver:
         with h5py.File(path, "w") as f:
             f.create_dataset("initial_state", data=initial_state)
             f.create_dataset("torque_action", data=torque_action)
-            f.create_dataset("result_qdd", data=np.concatenate([result_qdd_a, result_qdd_p]))
+            f.create_dataset(
+                "result_qdd", data=np.concatenate([result_qdd_a, result_qdd_p])
+            )
 
         self.datapoint_number += 1
 
@@ -95,7 +97,6 @@ class HDF5Saver:
                 if file.endswith(".hdf5"):
                     hdf5_files.append(os.path.join(root, file))
         return hdf5_files
-
 
     def combine_temp_hdf5s(self) -> None:
         """Combine all temp hdf5s into one."""
@@ -119,5 +120,5 @@ class HDF5Saver:
                 with h5py.File(file, "r") as temp_f:
                     for key in keys:
                         f[key][i] = temp_f[key]
-                    
+
         print(f"Saved to {self.final_file_path}")

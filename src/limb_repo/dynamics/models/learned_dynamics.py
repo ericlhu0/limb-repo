@@ -14,7 +14,7 @@ class PyTorchLearnedDynamicsModel(nn.Module):
         super().__init__()
 
         # inputs: active torque, q sin & cos, q; passive q sin & cos, qd
-        num_inputs = 4 * active_n_dofs + 3 * passive_n_dofs
+        num_inputs = 3 * active_n_dofs + 2 * passive_n_dofs
 
         # outputs: next robot qdd, human qdd
         num_outputs = active_n_dofs + passive_n_dofs
@@ -81,10 +81,10 @@ class LearnedDynamics(BaseDynamics):
                     torch.cos(self.q_p),
                     self.qd_p,
                 ],
-                axis=-1
+                axis=-1,
             )
         )
-        
+
         qdd = self.model(input_feature)
         qdd_a = qdd[:, : self.active_n_dofs]
         qdd_p = qdd[:, self.active_n_dofs :]
