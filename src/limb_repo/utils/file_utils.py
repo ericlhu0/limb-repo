@@ -6,6 +6,7 @@ from datetime import datetime
 
 import h5py
 import numpy as np
+from typing import List
 
 from limb_repo.structs import Action, JointState, LimbRepoState
 
@@ -30,14 +31,14 @@ class HDF5Saver:
     """Class to save data to hdf5."""
 
     def __init__(
-        self, final_file_path: str, tmp_dir: str = "/tmp/dynamics_data/"
+        self, final_file_dir: str, tmp_dir: str = "/tmp/dynamics_data/"
     ) -> None:
         self.datapoint_number = 0
-        self.final_file_path = final_file_path
+        self.final_file_dir = final_file_dir
 
-        timestamp = datetime.now().strftime("%m-%d_%H-%M-%S")
+        self.timestamp = datetime.now().strftime("%m-%d_%H-%M-%S")
         self.tmp_dir = tmp_dir
-        self.trial_tmp_dir = os.path.join(tmp_dir, timestamp)
+        self.trial_tmp_dir = os.path.join(tmp_dir, self.timestamp)
 
         if not os.path.exists(self.trial_tmp_dir):
             os.makedirs(self.trial_tmp_dir)
@@ -53,21 +54,6 @@ class HDF5Saver:
             else:
                 print("Exiting...")
                 sys.exit(1)
-
-    # def process_limb_repo_state(
-    #     self,
-    #     state: LimbRepoState,
-    #     active_joint_min: JointState,
-    #     active_joint_max: JointState,
-    # ) -> np.ndarray:
-    #     """Normalize and circularize ."""
-    #     q_a_cos = np.cos(state.active_q)
-    #     q_a_sin = np.sin(state.active_q)
-    #     q_p_cos = np.cos(state.passive_q)
-    #     q_p_sin = np.sin(state.passive_q)
-
-    # def decode_limb_repo_state(self, state: np.ndarray) -> LimbRepoState:
-    #     return
 
     def save_demo(
         self,
@@ -98,16 +84,45 @@ class HDF5Saver:
                     hdf5_files.append(os.path.join(root, file))
         return hdf5_files
 
-    def combine_temp_hdf5s(self) -> None:
+    def combine_temp_hdf5s(self, data_dirs=List[str]) -> None:
         """Combine all temp hdf5s into one."""
 
         # hdf5_files = self.find_hdf5_files(self.tmp_dir)
-        num_files = 7500000
-
-        data_dirs = ["01-06_22-59-51", "01-06_23-02-39", "01-06_23-03-58"]
-
+        files_per_dir = {}
         keys = []
         data_shapes = {}
+
+        find_step_size = 10000
+
+        for data_dir in data_dirs:
+            i = 0
+            while True:
+                try:
+                    with h5py.File(
+                        os.path.join(self.tmp_dir, data_dir, f"{i}.hdf5"), "r"
+                    ) as _:
+                        i += find_step_size
+                except FileNotFoundError:
+                    i -= find_step_size
+                    break
+
+            for j in range(i, i + find_step_size):
+                try:
+                    with h5py.File(
+                        os.path.join(self.tmp_dir, data_dir, f"{j}.hdf5"), "r"
+                    ) as _:
+                        pass
+                except FileNotFoundError:
+                    break
+                
+            files_per_dir[data_dir] = j + 1
+            print(files_per_dir)
+
+        print(files_per_dir)
+        num_files = sum(files_per_dir.values())
+        print("num_files", num_files)
+
+        final_file_path = os.path.join(self.final_file_dir, f"{num_files}_{self.timestamp}.hdf5")
 
         with h5py.File(os.path.join(self.tmp_dir, data_dirs[0], "0.hdf5"), "r") as f:
             for key in f.keys():
@@ -116,19 +131,19 @@ class HDF5Saver:
 
         print(keys, data_shapes)
 
-        with h5py.File(self.final_file_path, "w") as f:
+        with h5py.File(final_file_path, "w") as f:
             for key in keys:
                 f.create_dataset(key, shape=(num_files, *data_shapes[key]))
 
             for data_dir in data_dirs:
-                for i in range(num_files // len(data_dirs)):
+                for i in range(files_per_dir[data_dir]):
                     print("               i", i)
                     print("datapoint number", self.datapoint_number)
                     file = os.path.join(self.tmp_dir, data_dir, f"{i}.hdf5")
                     with h5py.File(file, "r") as temp_f:
                         for key in keys:
                             f[key][self.datapoint_number] = temp_f[key]
-                    
+
                     self.datapoint_number += 1
-                    
-        print(f"Saved to {self.final_file_path}")
+
+        print(f"Saved to {final_file_path}")

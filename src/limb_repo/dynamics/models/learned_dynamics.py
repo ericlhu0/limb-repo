@@ -1,5 +1,7 @@
 """Dynamics using a neural network."""
 
+from typing import Callable
+
 import numpy as np
 import omegaconf
 import torch
@@ -37,7 +39,12 @@ class LearnedDynamics(BaseDynamics):
     """Dynamics using a neural network."""
 
     def __init__(
-        self, config: omegaconf.DictConfig, weights_path: str, batch_size: int = 1
+        self,
+        config: omegaconf.DictConfig,
+        weights_path: str,
+        denormalize_features_fn: Callable[[torch.Tensor], torch.Tensor],
+        denormalize_labels_fn: Callable[[torch.Tensor], torch.Tensor],
+        batch_size: int = 1,
     ) -> None:
         super().__init__(config)
 
@@ -45,6 +52,9 @@ class LearnedDynamics(BaseDynamics):
 
         self.active_n_dofs = len(config.active_q)
         self.passive_n_dofs = len(config.passive_q)
+
+        self.denormalize_features_fn = denormalize_features_fn
+        self.denormalize_labels_fn = denormalize_labels_fn
 
         self.model = PyTorchLearnedDynamicsModel(
             self.active_n_dofs, self.passive_n_dofs
@@ -70,22 +80,24 @@ class LearnedDynamics(BaseDynamics):
         #     [ 5,  6, 13, 14, 21, 22],
         #     [ 7,  8, 15, 16, 23, 24]])
 
-        input_feature = torch.tensor(
-            np.concatenate(
-                [
-                    torques,
-                    torch.sin(self.q_a),
-                    torch.cos(self.q_a),
-                    self.qd_a,
-                    torch.sin(self.q_p),
-                    torch.cos(self.q_p),
-                    self.qd_p,
-                ],
-                axis=-1,
+        input_feature = self.denormalize_features_fn(
+            torch.tensor(
+                np.concatenate(
+                    [
+                        torques,
+                        self.q_a,
+                        self.qd_a,
+                        self.q_p,
+                        self.qd_p,
+                    ],
+                    axis=-1,
+                )
             )
         )
 
         qdd = self.model(input_feature)
+        qdd = self.denormalize_labels_fn(qdd)
+
         qdd_a = qdd[:, : self.active_n_dofs]
         qdd_p = qdd[:, self.active_n_dofs :]
 

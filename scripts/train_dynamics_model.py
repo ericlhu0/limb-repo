@@ -31,9 +31,10 @@ if __name__ == "__main__":
     model.to(device)
 
     cur_dir = os.path.dirname(os.path.abspath(__file__))
-    data_path = os.path.join(
-        cur_dir, "/Users/eric/Documents/lr-dir/limb-repo/_out/test.hdf5"
-    )
+    # data_path = os.path.join(
+    #     cur_dir, "/home/elh245/limb-repo/_the_good_stuff/500_2025-01-13_12:55:58.hdf5"
+    # )
+    data_path = "/home/elh245/limb-repo/_the_good_stuff/75000002025-01-13 13:30:10.hdf5"
 
     batch_size = 2**6
     learning_rate = 1e-3
@@ -95,6 +96,7 @@ if __name__ == "__main__":
     run = wandb.init(
         # Set the project where this run will be logged
         project="new_dynamics",
+        name="tanh_labels",
         # Track hyperparameters and run metadata
         config={
             "learning_rate": learning_rate,
@@ -103,6 +105,13 @@ if __name__ == "__main__":
             "train_dataset_length": len(train_dataset),
             "batch_size": batch_size,
             "human_n_dofs": 6,
+            "min_features": dataset.min_features,
+            "max_features": dataset.max_features,
+            "range_features": dataset.range_features,
+            "min_labels": dataset.min_labels,
+            "max_labels": dataset.max_labels,
+            "range_labels": dataset.range_labels,
+            "labels_normalization": "tanh(0.125 * x)",
         },
     )
 
@@ -175,6 +184,8 @@ if __name__ == "__main__":
         print("Mean diff:", avg_diff)
         print("Maxmimum diff:", max_diff)
         print("Max Location", max_location)
+        print("Max diff prediction:", all_test_predictions[int(max_location.item())])
+        print("Max diff label:", all_test_labels[int(max_location.item())])
 
         wandb.log(
             {
@@ -182,7 +193,7 @@ if __name__ == "__main__":
                 "test_mse_loss": test_mse_loss,
                 "avg_diff": avg_diff,
                 "max_diff": max_diff,
-                "diff_array": torch.ravel(all_diffs),
+                "diff_array": wandb.Histogram(torch.ravel(all_diffs).cpu()),
             }
         )
 
