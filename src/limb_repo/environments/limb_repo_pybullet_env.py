@@ -71,6 +71,10 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         )
         self.passive_n_dofs = len(self._passive_init_q)
 
+        self.init_limb_repo_state = LimbRepoState(
+            np.concatenate([self._active_init_state, self._passive_init_state])
+        )
+
         self._prev_active_q = self._active_init_q
         self._prev_passive_q = self._passive_init_q
         self._prev_active_qd = np.zeros(6)
