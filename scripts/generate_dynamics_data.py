@@ -27,5 +27,5 @@ if __name__ == "__main__":
     )
 
     data_generator.generate_data(
-        5000000, to_abs_path("_out/test.hdf5"), to_abs_path("_out/temp/")
+        5000000, to_abs_path("_the_good_stuff/"), to_abs_path("_out/temp/")
     )

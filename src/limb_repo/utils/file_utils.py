@@ -31,14 +31,14 @@ class HDF5Saver:
     """Class to save data to hdf5."""
 
     def __init__(
-        self, final_file_path: str, tmp_dir: str = "/tmp/dynamics_data/"
+        self, final_file_dir: str, tmp_dir: str = "/tmp/dynamics_data/"
     ) -> None:
         self.datapoint_number = 0
-        self.final_file_path = final_file_path
+        self.final_file_dir = final_file_dir
 
-        timestamp = datetime.now().strftime("%m-%d_%H-%M-%S")
+        self.timestamp = datetime.now().strftime("%m-%d_%H-%M-%S")
         self.tmp_dir = tmp_dir
-        self.trial_tmp_dir = os.path.join(tmp_dir, timestamp)
+        self.trial_tmp_dir = os.path.join(tmp_dir, self.timestamp)
 
         if not os.path.exists(self.trial_tmp_dir):
             os.makedirs(self.trial_tmp_dir)
@@ -54,21 +54,6 @@ class HDF5Saver:
             else:
                 print("Exiting...")
                 sys.exit(1)
-
-    # def process_limb_repo_state(
-    #     self,
-    #     state: LimbRepoState,
-    #     active_joint_min: JointState,
-    #     active_joint_max: JointState,
-    # ) -> np.ndarray:
-    #     """Normalize and circularize ."""
-    #     q_a_cos = np.cos(state.active_q)
-    #     q_a_sin = np.sin(state.active_q)
-    #     q_p_cos = np.cos(state.passive_q)
-    #     q_p_sin = np.sin(state.passive_q)
-
-    # def decode_limb_repo_state(self, state: np.ndarray) -> LimbRepoState:
-    #     return
 
     def save_demo(
         self,

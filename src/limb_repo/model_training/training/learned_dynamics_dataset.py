@@ -40,9 +40,10 @@ class LearnedDynamicsDataset(Dataset):
         self.features = self.normalize(
             self.features, self.min_features, self.max_features, self.range_features
         )
-        self.labels = self.normalize(
-            self.labels, self.min_labels, self.max_labels, self.range_labels
-        )
+        # self.labels = self.normalize(
+        #     self.labels, self.min_labels, self.max_labels, self.range_labels
+        # )
+        self.labels = torch.tanh(0.125 * self.labels)
 
     def normalize(
         self,
