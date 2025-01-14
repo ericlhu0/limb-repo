@@ -41,7 +41,7 @@ class DynamicsDataGenerator:
         self._active_joint_max = active_joint_max
         self._active_joint_min = active_joint_min
 
-        self._rng = np.random.default_rng(seed=42)
+        self._rng = np.random.default_rng()
 
         self._pybullet_helpers_sim = bc.BulletClient(connection_mode=pybullet.DIRECT)
         # pylint: disable=protected-access
@@ -164,4 +164,5 @@ class DynamicsDataGenerator:
                     break
 
         # merge all hdf5s into one
-        hdf5_saver.combine_temp_hdf5s()
+        print('temp dir:', tmp_dir)
+        hdf5_saver.combine_temp_hdf5s([hdf5_saver.trial_tmp_dir])
