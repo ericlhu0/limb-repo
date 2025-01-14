@@ -42,7 +42,7 @@ class LearnedDynamics(BaseDynamics):
         self,
         config: omegaconf.DictConfig,
         weights_path: str,
-        denormalize_features_fn: Callable[[torch.Tensor], torch.Tensor],
+        normalize_features_fn: Callable[[torch.Tensor], torch.Tensor],
         denormalize_labels_fn: Callable[[torch.Tensor], torch.Tensor],
         batch_size: int = 1,
     ) -> None:
@@ -53,25 +53,31 @@ class LearnedDynamics(BaseDynamics):
         self.active_n_dofs = len(config.active_q)
         self.passive_n_dofs = len(config.passive_q)
 
-        self.denormalize_features_fn = denormalize_features_fn
+        self.normalize_features_fn = normalize_features_fn
         self.denormalize_labels_fn = denormalize_labels_fn
 
         self.model = PyTorchLearnedDynamicsModel(
             self.active_n_dofs, self.passive_n_dofs
         )
-        self.model.load_state_dict(torch.load(weights_path))
+
+        self.model = nn.DataParallel(self.model)
+
+        if torch.cuda.is_available():
+            self.model.load_state_dict(torch.load(weights_path))
+        else:
+            self.model.load_state_dict(torch.load(weights_path, map_location="cpu"))
+        
         self.model.eval()
 
         self.dt = self.config.pybullet_config.dt
 
-        self.q_a = torch.tensor(np.repeat(config.active_q, batch_size))
-        self.qd_a = torch.zeros_like(self.q_a)
-        self.q_p = torch.tensor(np.repeat(config.passive_q, batch_size))
-        self.qd_p = torch.zeros_like(self.q_p)
+        self.q_a = torch.tensor(np.repeat(config.active_q, batch_size), requires_grad=False)
+        self.qd_a = torch.zeros_like(self.q_a, requires_grad=False)
+        self.q_p = torch.tensor(np.repeat(config.passive_q, batch_size), requires_grad=False)
+        self.qd_p = torch.zeros_like(self.q_p, requires_grad=False)
 
     def step(self, torques: Action) -> torch.Tensor:
         """Step the dynamics model."""
-        assert torques.shape[0] == self.batch_size
 
         # >>> a = np.concatenate([[[1, 2], [3, 4], [5, 6], [7, 8]], [[9, 10], [11, 12], [13, 14], [15, 16]], [[17, 18], [19, 20], [21, 22], [23, 24]]], axis=-1)
         # >>> a
@@ -80,33 +86,36 @@ class LearnedDynamics(BaseDynamics):
         #     [ 5,  6, 13, 14, 21, 22],
         #     [ 7,  8, 15, 16, 23, 24]])
 
-        input_feature = self.denormalize_features_fn(
-            torch.tensor(
-                np.concatenate(
-                    [
-                        torques,
-                        self.q_a,
-                        self.qd_a,
-                        self.q_p,
-                        self.qd_p,
-                    ],
-                    axis=-1,
-                )
-            )
-        )
+        torques = torch.tensor(torques, requires_grad=False).float()
+        input_feature = self.normalize_features_fn(
+            torch.concatenate(
+                [
+                    torques,
+                    self.q_a,
+                    self.qd_a,
+                    self.q_p,
+                    self.qd_p,
+                ],
+                axis=-1,
+            ),
+        ).float()
+
+        print("input_feature", input_feature)
 
         qdd = self.model(input_feature)
+        print("qdd", qdd)
         qdd = self.denormalize_labels_fn(qdd)
+        print("denormalized qdd", qdd)
 
-        qdd_a = qdd[:, : self.active_n_dofs]
-        qdd_p = qdd[:, self.active_n_dofs :]
+        qdd_a = qdd[: self.active_n_dofs]
+        qdd_p = qdd[self.active_n_dofs :]
 
         self.qd_a += qdd_a * self.dt
         self.q_a += self.qd_a * self.dt
         self.qd_p += qdd_p * self.dt
         self.q_p += self.qd_p * self.dt
 
-        return torch.concatenate([self.q_a, self.qd_a, self.q_p, self.qd_p])
+        return LimbRepoState(torch.concatenate([self.q_a, self.qd_a, self.q_p, self.qd_p]).detach().numpy())
 
     def get_state(self) -> LimbRepoState:
         """Get the state of the internal environment."""
