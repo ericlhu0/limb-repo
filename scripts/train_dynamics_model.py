@@ -36,8 +36,8 @@ if __name__ == "__main__":
     # )
     data_path = "/home/elh245/limb-repo/_the_good_stuff/75000002025-01-13 13:30:10.hdf5"
 
-    batch_size = 2**6
-    learning_rate = 1e-3
+    batch_size = 2**12
+    learning_rate = 1e-4
     epochs = 500
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)

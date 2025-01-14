@@ -6,7 +6,6 @@ from datetime import datetime
 
 import h5py
 import numpy as np
-from typing import List
 
 from limb_repo.structs import Action, JointState, LimbRepoState
 
@@ -84,15 +83,16 @@ class HDF5Saver:
                     hdf5_files.append(os.path.join(root, file))
         return hdf5_files
 
-    def combine_temp_hdf5s(self, data_dirs=List[str]) -> None:
+    def combine_temp_hdf5s(self, data_dirs=list[str]) -> None:
         """Combine all temp hdf5s into one."""
+        self.datapoint_number = 0
 
         # hdf5_files = self.find_hdf5_files(self.tmp_dir)
         files_per_dir = {}
         keys = []
         data_shapes = {}
 
-        find_step_size = 10000
+        find_step_size = 2
 
         for data_dir in data_dirs:
             i = 0
@@ -106,7 +106,7 @@ class HDF5Saver:
                     i -= find_step_size
                     break
 
-            for j in range(i, i + find_step_size):
+            for j in range(i, i + find_step_size + 1):
                 try:
                     with h5py.File(
                         os.path.join(self.tmp_dir, data_dir, f"{j}.hdf5"), "r"
@@ -115,12 +115,10 @@ class HDF5Saver:
                 except FileNotFoundError:
                     break
                 
-            files_per_dir[data_dir] = j + 1
-            print(files_per_dir)
+            files_per_dir[data_dir] = j
 
-        print(files_per_dir)
         num_files = sum(files_per_dir.values())
-        print("num_files", num_files)
+        print("number of files", num_files)
 
         final_file_path = os.path.join(self.final_file_dir, f"{num_files}_{self.timestamp}.hdf5")
 
@@ -137,8 +135,8 @@ class HDF5Saver:
 
             for data_dir in data_dirs:
                 for i in range(files_per_dir[data_dir]):
-                    print("               i", i)
-                    print("datapoint number", self.datapoint_number)
+                    # print("               i", i)
+                    # print("datapoint number", self.datapoint_number)
                     file = os.path.join(self.tmp_dir, data_dir, f"{i}.hdf5")
                     with h5py.File(file, "r") as temp_f:
                         for key in keys:
