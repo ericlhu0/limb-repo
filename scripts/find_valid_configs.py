@@ -4,7 +4,7 @@ from itertools import product
 
 import numpy as np
 
-from limb_repo.dynamics.models.math_dynamics_no_n_vector import MathDynamicsNoNVector
+from limb_repo.dynamics.models.math_dynamics import MathDynamics
 from limb_repo.environments.limb_repo_pybullet_env import (
     LimbRepoPyBulletConfig,
     LimbRepoPyBulletEnv,
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     )
 
     environment = LimbRepoPyBulletEnv(parsed_config)
-    dynamics_model = MathDynamicsNoNVector(parsed_config)
+    dynamics_model = MathDynamics(parsed_config)
     active_joint_min = environment.active_joint_min
     active_joint_max = environment.active_joint_max
 

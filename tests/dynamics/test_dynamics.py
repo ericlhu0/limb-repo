@@ -3,7 +3,7 @@
 import numpy as np
 
 from limb_repo.dynamics.checks.check_ee_kinematics import check_ee_kinematics
-from limb_repo.dynamics.models.math_dynamics_no_n_vector import MathDynamicsNoNVector
+from limb_repo.dynamics.models.math_dynamics import MathDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletConfig
 from limb_repo.utils import utils
 
@@ -14,7 +14,7 @@ def test_dynamics_no_n_vector():
         "assets/configs/test_env_config.yaml", LimbRepoPyBulletConfig
     )
     parsed_config.pybullet_config.use_gui = False
-    dynamics_model = MathDynamicsNoNVector(parsed_config)
+    dynamics_model = MathDynamics(parsed_config)
 
     for i in range(200):
         action = np.array([1, 0, 1, 0, 1, 0])
