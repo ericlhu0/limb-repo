@@ -1,6 +1,9 @@
 """Script to train a dynamics model."""
 
+import argparse
 import os
+import shutil
+import time
 
 import numpy as np
 import torch
@@ -9,18 +12,38 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
 import wandb
-from limb_repo.dynamics.models.learned_dynamics import PyTorchLearnedDynamicsModel
+from limb_repo.dynamics.models.learned_dynamics import (
+    NeuralNetworkConfig,
+    PyTorchLearnedDynamicsModel,
+)
 from limb_repo.model_training.training.learned_dynamics_dataset import (
     LearnedDynamicsDataset,
 )
+from limb_repo.utils import file_utils, utils
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run_name", type=str, required=True)
+    args = parser.parse_args()
+    run_name = args.run_name + "_" + time.strftime("%Y-%m-%d_%H-%M-%S")
+
+    # files!
+    nn_config_path = "assets/configs/nn_configs/30-512-512-512-12.yaml"
+    data_path = "_the_good_stuff/test.hdf5"
+    weights_dir = f"_weights/{run_name}/"
+    nn_config_path = file_utils.to_abs_path(nn_config_path)
+    data_path = file_utils.to_abs_path(data_path)
+    weights_dir = file_utils.to_abs_path(weights_dir)
+
+    os.makedirs(weights_dir, exist_ok=True)
+    shutil.copy2(nn_config_path, weights_dir)
 
     wandb.login()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = PyTorchLearnedDynamicsModel(active_n_dofs=6, passive_n_dofs=6)
+    model = PyTorchLearnedDynamicsModel(nn_config_path)
 
     # Use DataParallel to wrap the model
     if torch.cuda.device_count() > 1:
@@ -30,18 +53,14 @@ if __name__ == "__main__":
     # model.load_state_dict(torch.load('/home/elh245/limb-repositioning/storm/storm_kit/mpc/model/nn/model_weights.pth'))
     model.to(device)
 
-    cur_dir = os.path.dirname(os.path.abspath(__file__))
-    # data_path = os.path.join(
-    #     cur_dir, "/home/elh245/limb-repo/_the_good_stuff/500_2025-01-13_12:55:58.hdf5"
-    # )
-    data_path = "/home/elh245/limb-repo/_the_good_stuff/75000002025-01-13 13:30:10.hdf5"
-
     batch_size = 2**12
     learning_rate = 1e-4
     epochs = 500
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = CosineAnnealingLR(optimizer, T_max=epochs)  # Initialize the scheduler
+    scheduler = CosineAnnealingLR(
+        optimizer, T_max=epochs, eta_min=1e-4
+    )  # Initialize the scheduler
 
     dataset = LearnedDynamicsDataset(data_path)
 
@@ -69,50 +88,51 @@ if __name__ == "__main__":
     # # Create DataLoaders
     # train_dataloader = DataLoader(
     #     train_dataset,
-    #     batch_size=batch_size,
+    #     batch_size,
     #     shuffle=True,
     #     drop_last=False,
     #     num_workers=10,
     # )
     # test_dataloader = DataLoader(
     #     test_dataset,
-    #     batch_size=batch_size,
+    #     batch_size,
     #     shuffle=False,
     #     drop_last=False,
     #     num_workers=10,
     # )
 
-    # # Do not use num_workers when data is already on GPU
+    # Do not use num_workers when data is already on GPU
     train_dataloader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
+        train_dataset, batch_size, shuffle=True, drop_last=True
     )
     test_dataloader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, drop_last=True
+        test_dataset, batch_size, shuffle=False, drop_last=True
     )
 
     print("train data len:", len(train_dataset))
     print("epochs:", epochs)
 
+    run_config = {
+        "learning_rate": learning_rate,
+        "epochs": epochs,
+        "model_arch": str(model),
+        "train_dataset_length": len(train_dataset),
+        "batch_size": batch_size,
+        "human_n_dofs": 6,
+        "min_features": dataset.min_features,
+        "max_features": dataset.max_features,
+        "range_features": dataset.range_features,
+        "min_labels": dataset.min_labels,
+        "max_labels": dataset.max_labels,
+        "range_labels": dataset.range_labels,
+        "labels_normalization": "tanh(0.125 * x)",
+    }
+
     run = wandb.init(
         # Set the project where this run will be logged
         project="new_dynamics",
-        name="tanh_labels",
-        # Track hyperparameters and run metadata
-        config={
-            "learning_rate": learning_rate,
-            "epochs": epochs,
-            "model_arch": str(model),
-            "train_dataset_length": len(train_dataset),
-            "batch_size": batch_size,
-            "human_n_dofs": 6,
-            "min_features": dataset.min_features,
-            "max_features": dataset.max_features,
-            "range_features": dataset.range_features,
-            "min_labels": dataset.min_labels,
-            "max_labels": dataset.max_labels,
-            "range_labels": dataset.range_labels,
-            "labels_normalization": "tanh(0.125 * x)",
-        },
+        name=run_name,
+        config=run_config,
     )
 
     for epoch in range(epochs):
@@ -145,7 +165,7 @@ if __name__ == "__main__":
         train_mse_loss = loss_fn(all_train_predictions, all_train_labels)
 
         if (epoch + 1) % 10 == 0:
-            torch.save(model.state_dict(), "weights.pth")
+            torch.save(model.state_dict(), weights_dir + f"model_weights_{epoch}.pth")
 
         # testing loop
         test_mse_loss = torch.tensor(0.0).to(device)

@@ -1,6 +1,6 @@
 """Generate data for dynamics model."""
 
-from limb_repo.dynamics.models.math_dynamics_no_n_vector import MathDynamicsNoNVector
+from limb_repo.dynamics.models.math_dynamics import MathDynamics
 from limb_repo.environments.limb_repo_pybullet_env import (
     LimbRepoPyBulletConfig,
     LimbRepoPyBulletEnv,
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     )
 
     environment = LimbRepoPyBulletEnv(parsed_config)
-    dynamics_model = MathDynamicsNoNVector(parsed_config)
+    dynamics_model = MathDynamics(parsed_config)
 
     data_generator = DynamicsDataGenerator(
         environment,

@@ -6,7 +6,7 @@ from limb_repo.dynamics.models.base_math_dynamics import BaseMathDynamics
 from limb_repo.structs import Action, JointState, LimbRepoState
 
 
-class MathDynamicsNoNVector(BaseMathDynamics):
+class MathDynamics(BaseMathDynamics):
     """Dynamics Model Using Math Formulation With N Vector."""
 
     def __init__(self, config) -> None:

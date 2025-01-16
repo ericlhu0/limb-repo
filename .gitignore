@@ -6,6 +6,7 @@ playground/out/
 _out/
 _the_good_stuff/
 _figs/
+_weights/
 out/
 wandb/
 *.pth

@@ -5,7 +5,7 @@ import time
 import numpy as np
 
 # pylint: disable=unused-import
-from limb_repo.dynamics.models.math_dynamics_no_n_vector import MathDynamicsNoNVector
+from limb_repo.dynamics.models.math_dynamics import MathDynamics
 
 # pylint: disable=unused-import
 from limb_repo.dynamics.models.math_dynamics_with_n_vector import (
