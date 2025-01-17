@@ -86,6 +86,7 @@ class HDF5Saver:
 
     def combine_temp_hdf5s(self, data_dirs=List[str]) -> None:
         """Combine all temp hdf5s into one."""
+        self.datapoint_number = 0
 
         # hdf5_files = self.find_hdf5_files(self.tmp_dir)
         files_per_dir = {}
@@ -115,7 +116,7 @@ class HDF5Saver:
                 except FileNotFoundError:
                     break
 
-            files_per_dir[data_dir] = j + 1
+            files_per_dir[data_dir] = j
             print(files_per_dir)
 
         print(files_per_dir)

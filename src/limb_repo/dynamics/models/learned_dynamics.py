@@ -22,10 +22,10 @@ class NeuralNetworkConfig:
 
 
 class PyTorchLearnedDynamicsModel(nn.Module):
-    def __init__(self, nn_config_path: str):
+    def __init__(self, nn_config: omegaconf.DictConfig) -> None:
         super().__init__()
 
-        self.nn_config = utils.parse_config(nn_config_path, NeuralNetworkConfig)
+        self.nn_config = nn_config
 
         # inputs: active torque, q sin & cos, q; passive q sin & cos, qd
 
@@ -58,11 +58,13 @@ class LearnedDynamics(BaseDynamics):
         batch_size: int = 1,
     ) -> None:
         super().__init__(env_config)
+        self.active_n_dofs = len(env_config.active_q)
+        self.passive_n_dofs = len(env_config.passive_q)
 
         self.batch_size = batch_size
 
         self.model = PyTorchLearnedDynamicsModel(nn_config)
-        self.model = nn.DataParallel(self.model)
+        # self.model = nn.DataParallel(self.model)
 
         self.normalize_features_fn = normalize_features_fn
         self.denormalize_labels_fn = denormalize_labels_fn
