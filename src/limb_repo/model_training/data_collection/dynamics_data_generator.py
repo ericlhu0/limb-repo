@@ -164,5 +164,5 @@ class DynamicsDataGenerator:
                     break
 
         # merge all hdf5s into one
-        print('temp dir:', tmp_dir)
+        print("temp dir:", tmp_dir)
         hdf5_saver.combine_temp_hdf5s([hdf5_saver.trial_tmp_dir])

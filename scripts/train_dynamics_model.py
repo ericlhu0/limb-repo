@@ -7,11 +7,11 @@ import time
 
 import numpy as np
 import torch
+import wandb
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-import wandb
 from limb_repo.dynamics.models.learned_dynamics import (
     NeuralNetworkConfig,
     PyTorchLearnedDynamicsModel,
@@ -29,12 +29,22 @@ if __name__ == "__main__":
     run_name = args.run_name + "_" + time.strftime("%Y-%m-%d_%H-%M-%S")
 
     # files!
-    nn_config_path = "assets/configs/nn_configs/30-512-512-512-12.yaml"
-    data_path = "_the_good_stuff/test.hdf5"
+    nn_config_path = "assets/configs/nn_configs/30-512-512-512-512-12.yaml"
+    data_path = "/home/eric/lr-dir/limb-repo/_the_good_stuff/combined.hdf5"
     weights_dir = f"_weights/{run_name}/"
     nn_config_path = file_utils.to_abs_path(nn_config_path)
     data_path = file_utils.to_abs_path(data_path)
     weights_dir = file_utils.to_abs_path(weights_dir)
+
+    # # combine datasets
+    # hdf5_saver = file_utils.HDF5Saver(
+    #     file_utils.to_abs_path(f"_the_good_stuff/"),
+    #     file_utils.to_abs_path("_out/temp/"),
+    # )
+    # print("combining files")
+    # data_path = hdf5_saver.combine_temp_hdf5s(
+    #     data_dirs=["01-16_02-07-00", "01-16_02-07-02", "01-16_02-07-04", "01-16_02-07-07"]
+    # )
 
     os.makedirs(weights_dir, exist_ok=True)
     shutil.copy2(nn_config_path, weights_dir)
@@ -43,18 +53,19 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = PyTorchLearnedDynamicsModel(nn_config_path)
+    nn_config = utils.parse_config(nn_config_path, NeuralNetworkConfig)
+    model = PyTorchLearnedDynamicsModel(nn_config)
 
     # Use DataParallel to wrap the model
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs")
         model = nn.DataParallel(model)
 
-    # model.load_state_dict(torch.load('/home/elh245/limb-repositioning/storm/storm_kit/mpc/model/nn/model_weights.pth'))
+    # model.load_state_dict(torch.load('/home/eric/lr-dir/limb-repo/_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth'))
     model.to(device)
 
     batch_size = 2**12
-    learning_rate = 1e-4
+    learning_rate = 1e-3
     epochs = 500
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -68,11 +79,13 @@ if __name__ == "__main__":
     print("  max:", dataset.max_features)
     print("  min:", dataset.min_features)
     print("  range:", dataset.range_features)
+    print("  std: ", dataset.std_features)
 
     print("Normalized outputs with:")
     print("  max:", dataset.max_labels)
     print("  min:", dataset.min_labels)
     print("  range:", dataset.range_labels)
+    print("  std: ", dataset.std_labels)
 
     total_size = len(dataset)
     test_ratio = 0.2
@@ -165,7 +178,7 @@ if __name__ == "__main__":
         train_mse_loss = loss_fn(all_train_predictions, all_train_labels)
 
         if (epoch + 1) % 10 == 0:
-            torch.save(model.state_dict(), weights_dir + f"model_weights_{epoch}.pth")
+            torch.save(model.state_dict(), weights_dir + f"/model_weights_{epoch}.pth")
 
         # testing loop
         test_mse_loss = torch.tensor(0.0).to(device)

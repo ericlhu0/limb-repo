@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
-from limb_repo.dynamics.models.learned_dynamics import LearnedDynamics
+from limb_repo.dynamics.models.learned_dynamics import LearnedDynamics, NeuralNetworkConfig
 from limb_repo.dynamics.models.math_dynamics import MathDynamics
 from limb_repo.dynamics.models.math_dynamics_with_n_vector import (
     MathDynamicsWithNVector,
@@ -121,6 +121,76 @@ min_labels = torch.tensor(
     ]
 )
 
+max_features2 = torch.tensor(
+    [
+        0.9999996423721312,
+        1,
+        0.999999701976776,
+        0.9999998807907104,
+        0.9999998211860656,
+        0.9999995231628418,
+        2.8973000049591064,
+        1.7625828981399536,
+        -0.06980051100254059,
+        2.8972997665405273,
+        3.752498626708984,
+        2.8972997665405273,
+        0.999999701976776,
+        0.9999998211860656,
+        0.9999999403953552,
+        0.9999998807907104,
+        0.9999998807907104,
+        0.9999995231628418,
+        3.141592502593994,
+        3.141592502593994,
+        3.1415915489196777,
+        3.1344685554504395,
+        3.141592502593994,
+        3.141590118408203,
+        204.5392608642578,
+        22.441301345825195,
+        60.01301193237305,
+        7.351491928100586,
+        15.775938987731934,
+        17.91392707824707
+    ]
+)
+
+min_features2 = torch.tensor(
+    [
+        -0.999999701976776,
+        -0.9999992847442628,
+        -0.9999995231628418,
+        -0.9999994039535522,
+        -0.9999999403953552,
+        -0.9999997615814208,
+        -2.897299528121948,
+        -1.7627991437911987,
+        -3.071798324584961,
+        -2.8972997665405273,
+        -0.017499864101409912,
+        -2.897298574447632,
+        -0.9999998211860656,
+        -0.9999999403953552,
+        -0.9999999403953552,
+        -0.9999999403953552,
+        -0.9999998807907104,
+        -0.9999997615814208,
+        -3.1415908336639404,
+        -3.141592502593994,
+        -3.141592264175415,
+        -3.1203267574310303,
+        -3.1415905952453613,
+        -3.141591787338257,
+        -60.76736068725586,
+        -16.733293533325195,
+        -205.0948944091797,
+        -7.320549011230469,
+        -23.103116989135746,
+        -15.989590644836426
+    ]
+)
+
 parsed_config = utils.parse_config(
     "assets/configs/test_env_config.yaml", LimbRepoPyBulletConfig
 )
@@ -152,29 +222,39 @@ def denormalize_fn_lin(
 
 def denormalize_fn_tanh(scaling: int) -> Callable[[torch.Tensor], torch.Tensor]:
     def _denormalize_fn_tanh(x: torch.Tensor) -> torch.Tensor:
+        x[x > 1] = 0.9999
+        x[x < -1] = -0.9999
         return scaling * torch.arctanh(x)
 
     return _denormalize_fn_tanh
 
 
 n_lin_in = normalize_fn_lin(min_features, max_features)
+n_lin_in2 = normalize_fn_lin(min_features2, max_features2)
 dn_lin_out = denormalize_fn_lin(min_labels, max_labels)
 dn_tanh = denormalize_fn_tanh(8)
 
+nn_config_64_128_64 = utils.parse_config("assets/configs/nn_configs/30-64-128-64-12.yaml", NeuralNetworkConfig)
+nn_config_5123 = utils.parse_config("assets/configs/nn_configs/30-512-512-512-12.yaml", NeuralNetworkConfig)
+nn_config_5124 = utils.parse_config("assets/configs/nn_configs/30-512-512-512-512-12.yaml", NeuralNetworkConfig)
+
 models: List[BaseDynamics] = [
     MathDynamics(parsed_config),
-    MathDynamicsWithNVector(parsed_config),
-    PyBulletDynamics(parsed_config),
-    LearnedDynamics(parsed_config, "weights-10-epochs.pth", n_lin_in, dn_lin_out),
-    # # LearnedDynamics(parsed_config, "weights-30-epochs.pth"),
-    LearnedDynamics(parsed_config, "weights-90-epochs.pth", n_lin_in, dn_lin_out),
-    # # LearnedDynamics(parsed_config, "weights-310-epochs.pth"),
-    LearnedDynamics(parsed_config, "weights-500-epochs.pth", n_lin_in, dn_lin_out),
-    LearnedDynamics(parsed_config, "weights-tanh-30.pth", n_lin_in, dn_tanh),
-    # LearnedDynamics(parsed_config, "weights-tanh-40.pth", n_lin_in, dn_tanh),
-    # LearnedDynamics(parsed_config, "weights-tanh-50.pth", n_lin_in, dn_tanh),
-    # LearnedDynamics(parsed_config, "weights-tanh-60.pth", n_lin_in, dn_tanh),
-    LearnedDynamics(parsed_config, "weights-tanh-240.pth", n_lin_in, dn_tanh),
+    # MathDynamicsWithNVector(parsed_config),
+    # PyBulletDynamics(parsed_config),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-10-epochs.pth", n_lin_in, dn_lin_out),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-30-epochs.pth", n_lin_in, dn_lin_out),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-90-epochs.pth", n_lin_in, dn_lin_out),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-310-epochs.pth", n_lin_in, dn_lin_out),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-500-epochs.pth", n_lin_in, dn_lin_out),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-30.pth", n_lin_in, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-40.pth", n_lin_in, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-50.pth", n_lin_in, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-60.pth", n_lin_in, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-240.pth", n_lin_in, dn_tanh),
+    LearnedDynamics(parsed_config, nn_config_5123, "_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth", n_lin_in2, dn_tanh),
+    LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_179.pth", n_lin_in2, dn_tanh),
+    LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_269.pth", n_lin_in2, dn_tanh),
 ]
 
 tracked_robot_states = {}
@@ -185,7 +265,7 @@ for model in models:
 time_steps = []
 
 for i in range(500):
-    action = np.random.rand(6) * 0
+    action = np.random.rand(6) * 2 - 1
     print(f"loop {i}")
     for model in models:
         t1 = time.time()

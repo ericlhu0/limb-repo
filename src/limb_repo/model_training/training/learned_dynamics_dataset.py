@@ -28,6 +28,21 @@ class LearnedDynamicsDataset(Dataset):
             [torch.from_numpy(self.data[key][:]) for key in self.label_keys], dim=1
         )
 
+
+        self.std_features = torch.std(self.features, dim=0)
+        self.mean_features = torch.mean(self.features, dim=0)
+        self.std_labels = torch.std(self.labels, dim=0)
+        self.mean_features = torch.mean(self.features, dim=0)
+
+        # Filter out outliers beyond 4 standard deviations
+        z_scores = (self.features - self.mean_features) / self.std_features
+        mask = torch.all(torch.abs(z_scores) <= 4, dim=1)
+        print("mask", torch.sum(mask))
+        self.features = self.features[mask]
+        self.labels = self.labels[mask]
+
+        print('feature shape:', self.features.shape)
+
         # normalize features and labels between -1 and 1
         self.min_features = torch.min(self.features, dim=0).values
         self.max_features = torch.max(self.features, dim=0).values
