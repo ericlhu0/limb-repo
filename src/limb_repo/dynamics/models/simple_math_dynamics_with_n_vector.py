@@ -44,8 +44,7 @@ class SimpleMathDynamicsWithNVector(BaseMathDynamics):
         Nh = Ch @ qd_p_i + gh
 
         qdd_a = np.linalg.pinv((Jhinv @ R @ -Jr).T @ Mh @ (Jhinv @ R @ Jr) - Mr) @ (
-            (Jhinv @ R @ Jr).T
-            @ Nh + Nr - np.array(torques)
+            (Jhinv @ R @ Jr).T @ Nh + Nr - np.array(torques)
         )
 
         self.current_state = self.apply_active_acceleration(
