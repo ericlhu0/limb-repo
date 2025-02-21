@@ -3,9 +3,8 @@
 import abc
 
 import omegaconf
-import torch
 
-from limb_repo.structs import Action, JointState, LimbRepoEEState, LimbRepoState
+from limb_repo.structs import Action, LimbRepoEEState, LimbRepoState
 
 
 class BaseDynamics(abc.ABC):
@@ -15,11 +14,11 @@ class BaseDynamics(abc.ABC):
         self.config = config
 
     @abc.abstractmethod
-    def step(self, torques: Action) -> LimbRepoState | torch.Tensor:
+    def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
 
     @abc.abstractmethod
-    def get_state(self) -> LimbRepoState | torch.Tensor:
+    def get_state(self) -> LimbRepoState:
         """Get the state of the internal environment."""
 
     @abc.abstractmethod

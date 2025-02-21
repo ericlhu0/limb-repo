@@ -16,9 +16,8 @@ def test_dynamics_no_n_vector():
     parsed_config.pybullet_config.use_gui = False
     dynamics_model = MathDynamics(parsed_config)
 
-    for i in range(200):
+    for _ in range(200):
         action = np.array([1, 0, 1, 0, 1, 0])
-        print(f"loop {i}")
         dynamics_model.step(action)
         limb_repo_ee_state = dynamics_model.env.get_limb_repo_ee_state()
         assert check_ee_kinematics(

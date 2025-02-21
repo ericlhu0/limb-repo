@@ -3,13 +3,12 @@
 from dataclasses import dataclass
 from typing import Callable
 
-import numpy as np
 import omegaconf
 import torch
 from torch import nn
 
-from limb_repo.dynamics.models.base_dynamics import BaseDynamics
-from limb_repo.structs import Action, LimbRepoEEState, LimbRepoState
+from limb_repo.dynamics.models.batched.base_batched_dynamics import BaseBatchedDynamics
+
 
 @dataclass
 class NeuralNetworkConfig:
@@ -20,14 +19,14 @@ class NeuralNetworkConfig:
     activation: str
 
 
-class PyTorchLearnedDynamicsModel(nn.Module):
-    """PyTorch neural network model for learned dynamics."""
+class BatchedLearnedDynamicsModel(nn.Module):
+    """Batched neural network model for learned dynamics."""
     def __init__(self, nn_config: omegaconf.DictConfig) -> None:
         super().__init__()
 
         self.nn_config = nn_config
 
-        # inputs: active torque, q sin & cos, q; passive q sin & cos, qd
+        # inputs: active torque, q sin & cos, qd; passive q sin & cos, qd
 
         layers = []
         prev_size = self.nn_config.input_size
@@ -46,7 +45,7 @@ class PyTorchLearnedDynamicsModel(nn.Module):
         return self.layer_stack(inp)
 
 
-class LearnedDynamics(BaseDynamics):
+class BatchedLearnedDynamics(BaseBatchedDynamics):
     """Dynamics using a neural network."""
 
     # pylint: disable=too-many-positional-arguments
@@ -59,13 +58,14 @@ class LearnedDynamics(BaseDynamics):
         denormalize_labels_fn: Callable[[torch.Tensor], torch.Tensor],
         batch_size: int = 1,
     ) -> None:
-        super().__init__(env_config)
+        super().__init__()
+        self.config = env_config
         self.active_n_dofs = len(env_config.active_q)
         self.passive_n_dofs = len(env_config.passive_q)
 
         self.batch_size = batch_size
 
-        self.model = PyTorchLearnedDynamicsModel(nn_config)
+        self.model = BatchedLearnedDynamicsModel(nn_config)
         # self.model = nn.DataParallel(self.model)
 
         self.normalize_features_fn = normalize_features_fn
@@ -84,16 +84,16 @@ class LearnedDynamics(BaseDynamics):
 
         self.dt = self.config.pybullet_config.dt
 
-        self.q_a = torch.tensor(
-            np.repeat(env_config.active_q, batch_size), requires_grad=False
+        self.q_a_batch = torch.tile(
+            torch.tensor(env_config.active_q, requires_grad=False), (batch_size, 1)
         )
-        self.qd_a = torch.zeros_like(self.q_a, requires_grad=False)
-        self.q_p = torch.tensor(
-            np.repeat(env_config.passive_q, batch_size), requires_grad=False
+        self.qd_a_batch = torch.zeros_like(self.q_a_batch, requires_grad=False)
+        self.q_p_batch = torch.tile(
+            torch.tensor(env_config.passive_q, requires_grad=False), (batch_size, 1)
         )
-        self.qd_p = torch.zeros_like(self.q_p, requires_grad=False)
+        self.qd_p_batch = torch.zeros_like(self.q_p_batch, requires_grad=False)
 
-    def step(self, torques: Action) -> LimbRepoState:
+    def step_batched(self, torques: torch.Tensor) -> torch.Tensor:
         """Step the dynamics model."""
 
         # >>> a = np.concatenate([[[1, 2], [3, 4], [5, 6], [7, 8]], [[9, 10], [11, 12],
@@ -104,54 +104,54 @@ class LearnedDynamics(BaseDynamics):
         #     [ 5,  6, 13, 14, 21, 22],
         #     [ 7,  8, 15, 16, 23, 24]])
 
-        torques_tensor = torch.tensor(torques, requires_grad=False).float()
+        if len(torques.shape) == 1:
+            torques = torques.unsqueeze(0)
+
+        assert torques.shape[0] == self.batch_size
+
+        torques = torques.float()
+
         input_feature = self.normalize_features_fn(
             torch.concatenate(
                 [
-                    torques_tensor,
-                    self.q_a,
-                    self.qd_a,
-                    self.q_p,
-                    self.qd_p,
+                    torques,
+                    self.q_a_batch,
+                    self.qd_a_batch,
+                    self.q_p_batch,
+                    self.qd_p_batch,
                 ],
                 dim=-1,
             ),
         ).float()
 
-        print("input_feature", input_feature)
-
         qdd = self.model(input_feature)
-        print("qdd", qdd)
         qdd = self.denormalize_labels_fn(qdd)
-        print("denormalized qdd", qdd)
 
-        qdd_a = qdd[: self.active_n_dofs]
-        qdd_p = qdd[self.active_n_dofs :]
+        qdd_a = qdd[:, : self.active_n_dofs]
+        qdd_p = qdd[:, self.active_n_dofs :]
 
-        self.qd_a += qdd_a * self.dt
-        self.q_a += self.qd_a * self.dt
-        self.qd_p += qdd_p * self.dt
-        self.q_p += self.qd_p * self.dt
+        self.qd_a_batch += qdd_a * self.dt
+        self.q_a_batch += self.qd_a_batch * self.dt
+        self.qd_p_batch += qdd_p * self.dt
+        self.q_p_batch += self.qd_p_batch * self.dt
 
-        return LimbRepoState(
-            torch.concatenate([self.q_a, self.qd_a, self.q_p, self.qd_p])
-            .detach()
-            .numpy()
+        return torch.concatenate(
+            [self.q_a_batch, self.qd_a_batch, self.q_p_batch, self.qd_p_batch], dim=-1
         )
 
-    def get_state(self) -> LimbRepoState:
+    def get_state_batched(self) -> torch.Tensor:
         """Get the state of the internal environment."""
-        return LimbRepoState(
-            torch.concatenate([self.q_a, self.qd_a, self.q_p, self.qd_p]).numpy()
+        return torch.concatenate(
+            [self.q_a_batch, self.qd_a_batch, self.q_p_batch, self.qd_p_batch], dim=-1
         )
 
-    def get_ee_state(self) -> LimbRepoEEState:
-        """Get the state of the end effector."""
-        raise NotImplementedError("not implemented for neural network")
-
-    def set_state(self, state: LimbRepoState) -> None:
+    def set_state_batched(self, state_batch: torch.Tensor) -> None:
         """Set the state from which to step the dynamics model from."""
-        self.q_a = state.active_q
-        self.qd_a = state.active_qd
-        self.q_p = state.passive_q
-        self.qd_p = state.passive_qd
+        self.q_a_batch = state_batch[:, : self.active_n_dofs]
+        self.qd_a_batch = state_batch[:, self.active_n_dofs : 2 * self.active_n_dofs]
+        self.q_p_batch = state_batch[
+            :, 2 * self.active_n_dofs : 2 * self.active_n_dofs + self.passive_n_dofs
+        ]
+        self.qd_p_batch = state_batch[
+            :, 2 * self.active_n_dofs + self.passive_n_dofs :
+        ]

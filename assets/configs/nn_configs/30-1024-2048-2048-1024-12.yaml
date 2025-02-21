@@ -1,0 +1,4 @@
+input_size: 30
+hidden_layers: [1024, 2048, 2048, 1024]
+output_size: 12
+activation: "ReLU"

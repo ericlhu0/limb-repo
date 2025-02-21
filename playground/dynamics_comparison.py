@@ -1,21 +1,21 @@
 """Testing math dynamics models."""
 
 import time
-from typing import Callable, List
+from typing import Any, Callable, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
-from limb_repo.dynamics.models.learned_dynamics import LearnedDynamics, NeuralNetworkConfig
-from limb_repo.dynamics.models.math_dynamics import MathDynamics
-from limb_repo.dynamics.models.math_dynamics_with_n_vector import (
-    MathDynamicsWithNVector,
+from limb_repo.dynamics.models.learned_dynamics import (
+    LearnedDynamics,
+    NeuralNetworkConfig,
 )
+from limb_repo.dynamics.models.math_dynamics import MathDynamics
+
 from limb_repo.dynamics.models.pybullet_dynamics import PyBulletDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletConfig
-from limb_repo.structs import LimbRepoState
 from limb_repo.utils import utils
 
 np.random.seed(0)
@@ -152,7 +152,7 @@ max_features2 = torch.tensor(
         60.01301193237305,
         7.351491928100586,
         15.775938987731934,
-        17.91392707824707
+        17.91392707824707,
     ]
 )
 
@@ -187,7 +187,77 @@ min_features2 = torch.tensor(
         -205.0948944091797,
         -7.320549011230469,
         -23.103116989135746,
-        -15.989590644836426
+        -15.989590644836426,
+    ]
+)
+
+max_features3 = torch.tensor(
+    [
+        1.0000,
+        1.0000,
+        1.0000,
+        1.0000,
+        1.0000,
+        1.0000,
+        2.8973,
+        1.7626,
+        -0.0698,
+        2.8973,
+        3.7525,
+        2.8973,
+        1.0000,
+        1.0000,
+        1.0000,
+        1.0000,
+        1.0000,
+        1.0000,
+        3.1416,
+        3.1416,
+        3.1416,
+        3.1217,
+        3.1416,
+        3.1416,
+        4.5628,
+        3.0144,
+        3.6326,
+        4.8081,
+        4.0170,
+        3.7522,
+    ]
+)
+
+min_features3 = torch.tensor(
+    [
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -2.8973,
+        -1.7628,
+        -3.0718,
+        -2.8973,
+        -0.0175,
+        -2.8973,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -1.0000,
+        -3.1416,
+        -3.1416,
+        -3.1416,
+        -3.1142,
+        -3.1416,
+        -3.1416,
+        -4.5628,
+        -3.0141,
+        -3.6323,
+        -4.8089,
+        -4.0172,
+        -3.7543,
     ]
 )
 
@@ -200,6 +270,7 @@ parsed_config.pybullet_config.use_gui = False
 def normalize_fn_lin(
     min_values: torch.Tensor, max_values: torch.Tensor
 ) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Return a linear normalization function."""
     range_value = max_values - min_values
     print("range value", range_value)
 
@@ -212,6 +283,7 @@ def normalize_fn_lin(
 def denormalize_fn_lin(
     min_values: torch.Tensor, max_values: torch.Tensor
 ) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Return a linear denormalization function."""
     range_value = max_values - min_values
 
     def _denormalize_fn_lin(x: torch.Tensor) -> torch.Tensor:
@@ -221,6 +293,7 @@ def denormalize_fn_lin(
 
 
 def denormalize_fn_tanh(scaling: int) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Return a tanh denormalization function."""
     def _denormalize_fn_tanh(x: torch.Tensor) -> torch.Tensor:
         x[x > 1] = 0.9999
         x[x < -1] = -0.9999
@@ -231,17 +304,28 @@ def denormalize_fn_tanh(scaling: int) -> Callable[[torch.Tensor], torch.Tensor]:
 
 n_lin_in = normalize_fn_lin(min_features, max_features)
 n_lin_in2 = normalize_fn_lin(min_features2, max_features2)
+n_lin_in3 = normalize_fn_lin(min_features3, max_features3)
 dn_lin_out = denormalize_fn_lin(min_labels, max_labels)
 dn_tanh = denormalize_fn_tanh(8)
 
-nn_config_64_128_64 = utils.parse_config("assets/configs/nn_configs/30-64-128-64-12.yaml", NeuralNetworkConfig)
-nn_config_5123 = utils.parse_config("assets/configs/nn_configs/30-512-512-512-12.yaml", NeuralNetworkConfig)
-nn_config_5124 = utils.parse_config("assets/configs/nn_configs/30-512-512-512-512-12.yaml", NeuralNetworkConfig)
+nn_config_64_128_64 = utils.parse_config(
+    "assets/configs/nn_configs/30-64-128-64-12.yaml", NeuralNetworkConfig
+)
+nn_config_5123 = utils.parse_config(
+    "assets/configs/nn_configs/30-512-512-512-12.yaml", NeuralNetworkConfig
+)
+nn_config_5124 = utils.parse_config(
+    "assets/configs/nn_configs/30-512-512-512-512-12.yaml", NeuralNetworkConfig
+)
+nn_config_1024_2048 = utils.parse_config(
+    "assets/configs/nn_configs/30-1024-2048-2048-1024-12.yaml", NeuralNetworkConfig
+)
 
+# pylint: disable=line-too-long
 models: List[BaseDynamics] = [
     MathDynamics(parsed_config),
     # MathDynamicsWithNVector(parsed_config),
-    # PyBulletDynamics(parsed_config),
+    PyBulletDynamics(parsed_config),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-10-epochs.pth", n_lin_in, dn_lin_out),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-30-epochs.pth", n_lin_in, dn_lin_out),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-90-epochs.pth", n_lin_in, dn_lin_out),
@@ -252,13 +336,20 @@ models: List[BaseDynamics] = [
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-50.pth", n_lin_in, dn_tanh),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-60.pth", n_lin_in, dn_tanh),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-tanh-240.pth", n_lin_in, dn_tanh),
-    LearnedDynamics(parsed_config, nn_config_5123, "_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth", n_lin_in2, dn_tanh),
-    LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_179.pth", n_lin_in2, dn_tanh),
-    LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_269.pth", n_lin_in2, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_5123, "_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth", n_lin_in2, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_179.pth", n_lin_in2, dn_tanh),
+    # LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_269.pth", n_lin_in2, dn_tanh),
+    LearnedDynamics(
+        parsed_config,
+        nn_config_1024_2048,
+        "_weights/1024-2048-3std_2025-01-16_23-23-22/model_weights_499.pth",
+        n_lin_in3,
+        dn_tanh,
+    ),
 ]
 
-tracked_robot_states = {}
-tracked_human_states = {}
+tracked_robot_states: dict[BaseDynamics, Any] = {}
+tracked_human_states: dict[BaseDynamics, Any] = {}
 for model in models:
     tracked_robot_states[model] = []
     tracked_human_states[model] = []
@@ -266,6 +357,7 @@ time_steps = []
 
 for i in range(500):
     action = np.random.rand(6) * 2 - 1
+    # action = np.zeros(6)
     print(f"loop {i}")
     for model in models:
         t1 = time.time()
@@ -280,30 +372,39 @@ for i in range(500):
     time_steps.append(i)
 
 for i in range(12):
+    color = "green"
     for model in models:
         plt.plot(
             time_steps,
             np.array(tracked_robot_states[model])[:, i],
             label=f"{model}"[20:40],
+            color=color,
         )
+        color = "red"
 
     plt.xlabel("Time step")
-    plt.ylabel(f"robot {i}th joint position")
-    plt.title(f"robot {i}th joint position")
+    label = f"{'position' if i < 6 else 'velocity'} robot {i % 6}th joint"
+    plt.ylabel(label)
+    plt.title(label)
     plt.legend()
-    plt.savefig(f"_figs/robot_{i}_joint_position.png")
+    plt.savefig(f"_figs/{label}.png")
     plt.close()
 
 for i in range(12):
+    color = "green"
     for model in models:
         plt.plot(
             time_steps,
             np.array(tracked_human_states[model])[:, i],
             label=f"{model}"[20:40],
+            color=color,
         )
+        color = "red"
 
     plt.xlabel("Time step")
-    plt.ylabel(f"human {i}th joint position")
+    label = f"{'position' if i < 6 else 'velocity'} human {i % 6}th joint"
+    plt.ylabel(label)
+    plt.title(label)
     plt.legend()
-    plt.savefig(f"_figs/human_{i}_joint_position.png")
+    plt.savefig(f"_figs/{label}.png")
     plt.close()

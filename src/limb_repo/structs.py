@@ -149,6 +149,30 @@ class LimbRepoState(JointState):
         """Get passive velocity."""
         return self[self.passive_qd_slice]
 
+    # @property
+    # def active_slice(self):
+    #     return self.active_slice
+
+    # @property
+    # def active_q_slice(self):
+    #     return self.active_q_slice
+
+    # @property
+    # def active_qd_slice(self):
+    #     return self.active_qd_slice
+
+    # @property
+    # def passive_slice(self):
+    #     return self.passive_slice
+
+    # @property
+    # def passive_q_slice(self):
+    #     return self.passive_q_slice
+
+    # @property
+    # def passive_qd_slice(self):
+    #     return self.passive_qd_slice
+
 
 @dataclass
 class LimbRepoEEState:

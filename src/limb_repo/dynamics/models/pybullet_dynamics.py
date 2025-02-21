@@ -4,7 +4,7 @@ import omegaconf
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
-from limb_repo.structs import Action, JointState, LimbRepoEEState, LimbRepoState
+from limb_repo.structs import Action, LimbRepoEEState, LimbRepoState
 
 
 class PyBulletDynamics(BaseDynamics):

@@ -5,13 +5,12 @@ import os
 import shutil
 import time
 
-import numpy as np
 import torch
-import wandb
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
+import wandb
 from limb_repo.dynamics.models.learned_dynamics import (
     NeuralNetworkConfig,
     PyTorchLearnedDynamicsModel,
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     # )
     # print("combining files")
     # data_path = hdf5_saver.combine_temp_hdf5s(
-    #     data_dirs=["01-16_02-07-00", "01-16_02-07-02", "01-16_02-07-04", "01-16_02-07-07"]
+    # data_dirs=["01-16_02-07-00", "01-16_02-07-02", "01-16_02-07-04", "01-16_02-07-07"]
     # )
 
     os.makedirs(weights_dir, exist_ok=True)
@@ -57,11 +56,11 @@ if __name__ == "__main__":
     model = PyTorchLearnedDynamicsModel(nn_config)
 
     # Use DataParallel to wrap the model
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs")
-        model = nn.DataParallel(model)
+    # if torch.cuda.device_count() > 1:
+    #     print(f"Using {torch.cuda.device_count()} GPUs")
+    #     model = nn.DataParallel(model)
 
-    # model.load_state_dict(torch.load('/home/eric/lr-dir/limb-repo/_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth'))
+    # model.load_state_dict(torch.load('/home/eric/lr-dir/limb-repo/_weights/... .pth'))
     model.to(device)
 
     batch_size = 2**12
@@ -152,10 +151,10 @@ if __name__ == "__main__":
         print(f"Epoch {epoch+1}\n-------------------------------")
 
         # train loop
-        train_size = len(train_dataloader.dataset)
+        train_size = len(train_dataloader)
         model.train()
-        all_train_predictions = []
-        all_train_labels = []
+        all_train_predictions: list[torch.Tensor] = []
+        all_train_labels: list[torch.Tensor] = []
 
         for batch, (features, labels) in enumerate(train_dataloader):
             # Move data to GPU
@@ -173,9 +172,9 @@ if __name__ == "__main__":
             optimizer.step()
             optimizer.zero_grad()
 
-        all_train_predictions = torch.cat(all_train_predictions)
-        all_train_labels = torch.cat(all_train_labels)
-        train_mse_loss = loss_fn(all_train_predictions, all_train_labels)
+        train_mse_loss = loss_fn(
+            torch.cat(all_train_predictions), torch.cat(all_train_labels)
+        )
 
         if (epoch + 1) % 10 == 0:
             torch.save(model.state_dict(), weights_dir + f"/model_weights_{epoch}.pth")
@@ -200,10 +199,7 @@ if __name__ == "__main__":
                 batch_diff = pred - labels
                 all_diffs = torch.cat((all_diffs, batch_diff))
 
-        all_test_predictions = torch.cat(all_test_predictions)
-        all_test_labels = torch.cat(all_test_labels)
-
-        test_mse_loss = loss_fn(all_test_predictions, all_test_labels)
+        test_mse_loss = loss_fn(torch.cat(all_test_predictions), all_test_labels)
 
         # all_diffs = np.array(all_diffs)
         avg_diff = torch.mean(torch.abs((all_diffs)))
@@ -226,12 +222,14 @@ if __name__ == "__main__":
                 "test_mse_loss": test_mse_loss,
                 "avg_diff": avg_diff,
                 "max_diff": max_diff,
-                "diff_array": wandb.Histogram(torch.ravel(all_diffs).cpu()),
+                "diff_array": wandb.Histogram(
+                    list(torch.ravel(all_diffs).cpu().numpy())
+                ),
             }
         )
 
         # Step the scheduler
         scheduler.step()
 
-    torch.save(model.state_dict(), "new_data_model.pth")
+    torch.save(model.state_dict(), weights_dir + "/model_weights_final.pth")
     print("saved model")

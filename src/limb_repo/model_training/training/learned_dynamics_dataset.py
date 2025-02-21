@@ -3,7 +3,6 @@
 from typing import Tuple
 
 import h5py
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -28,7 +27,6 @@ class LearnedDynamicsDataset(Dataset):
             [torch.from_numpy(self.data[key][:]) for key in self.label_keys], dim=1
         )
 
-
         self.std_features = torch.std(self.features, dim=0)
         self.mean_features = torch.mean(self.features, dim=0)
         self.std_labels = torch.std(self.labels, dim=0)
@@ -41,7 +39,7 @@ class LearnedDynamicsDataset(Dataset):
         self.features = self.features[mask]
         self.labels = self.labels[mask]
 
-        print('feature shape:', self.features.shape)
+        print("feature shape:", self.features.shape)
 
         # normalize features and labels between -1 and 1
         self.min_features = torch.min(self.features, dim=0).values
@@ -63,15 +61,15 @@ class LearnedDynamicsDataset(Dataset):
     def normalize(
         self,
         data: torch.Tensor,
-        min: torch.Tensor,
-        max: torch.Tensor,
-        range: torch.Tensor,
+        low: torch.Tensor,
+        high: torch.Tensor,
+        data_range: torch.Tensor,
     ) -> torch.Tensor:
         """Normalize each column independently between -1 and 1."""
-        print("min data shape:", min)
-        print("max data shape:", max)
+        print("min data shape:", low)
+        print("max data shape:", high)
         print("data shape:", data.shape)
-        return 2 * (data - min) / range - 1
+        return 2 * (data - low) / data_range - 1
 
     def __len__(self):
         """Return the number of data points."""
