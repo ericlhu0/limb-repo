@@ -6,10 +6,11 @@ import shutil
 import time
 
 import torch
-import wandb
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
+
+import wandb  # isort: split
 
 from limb_repo.dynamics.models.learned_dynamics import (
     NeuralNetworkConfig,
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     run_name = args.run_name + "_" + time.strftime("%Y-%m-%d_%H-%M-%S")
 
-    # files!
+    # files
     nn_config_path = "assets/configs/nn_configs/30-512-512-512-512-12.yaml"
     data_path = "/home/eric/lr-dir/limb-repo/_the_good_stuff/combined.hdf5"
     weights_dir = f"_weights/{run_name}/"
@@ -85,6 +86,21 @@ if __name__ == "__main__":
     print("  min:", dataset.min_labels)
     print("  range:", dataset.range_labels)
     print("  std: ", dataset.std_labels)
+
+    torch.save(
+        torch.tensor(torch.squeeze(dataset.min_features)),
+        weights_dir + "/min_features.pt",
+    )
+    torch.save(
+        torch.tensor(torch.squeeze(dataset.max_features)),
+        weights_dir + "/max_features.pt",
+    )
+    torch.save(
+        torch.tensor(torch.squeeze(dataset.min_labels)), weights_dir + "/min_labels.pt"
+    )
+    torch.save(
+        torch.tensor(torch.squeeze(dataset.max_labels)), weights_dir + "/max_labels.pt"
+    )
 
     total_size = len(dataset)
     test_ratio = 0.2
