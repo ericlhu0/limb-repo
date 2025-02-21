@@ -13,6 +13,7 @@ from limb_repo.dynamics.models.learned_dynamics import (
     NeuralNetworkConfig,
 )
 from limb_repo.dynamics.models.math_dynamics import MathDynamics
+from limb_repo.dynamics.models.math_dynamics_with_n_vector import MathDynamicsWithNVector
 from limb_repo.dynamics.models.pybullet_dynamics import PyBulletDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletConfig
 from limb_repo.utils import utils
@@ -324,7 +325,7 @@ nn_config_1024_2048 = utils.parse_config(
 # pylint: disable=line-too-long
 models: List[BaseDynamics] = [
     MathDynamics(parsed_config),
-    # MathDynamicsWithNVector(parsed_config),
+    MathDynamicsWithNVector(parsed_config),
     PyBulletDynamics(parsed_config),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-10-epochs.pth", n_lin_in, dn_lin_out),
     # LearnedDynamics(parsed_config, nn_config_64_128_64, "weights-30-epochs.pth", n_lin_in, dn_lin_out),
@@ -339,13 +340,13 @@ models: List[BaseDynamics] = [
     # LearnedDynamics(parsed_config, nn_config_5123, "_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth", n_lin_in2, dn_tanh),
     # LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_179.pth", n_lin_in2, dn_tanh),
     # LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_269.pth", n_lin_in2, dn_tanh),
-    LearnedDynamics(
-        parsed_config,
-        nn_config_1024_2048,
-        "_weights/1024-2048-3std_2025-01-16_23-23-22/model_weights_499.pth",
-        n_lin_in3,
-        dn_tanh,
-    ),
+    # LearnedDynamics(
+    #     parsed_config,
+    #     nn_config_1024_2048,
+    #     "_weights/1024-2048-3std_2025-01-16_23-23-22/model_weights_499.pth",
+    #     n_lin_in3,
+    #     dn_tanh,
+    # ),
 ]
 
 tracked_robot_states: dict[BaseDynamics, Any] = {}
@@ -355,8 +356,8 @@ for model in models:
     tracked_human_states[model] = []
 time_steps = []
 
-for i in range(500):
-    action = np.random.rand(6) * 2 - 1
+for i in range(1000):
+    action = np.random.rand(6) * 20 - 10
     # action = np.zeros(6)
     print(f"loop {i}")
     for model in models:
@@ -378,7 +379,7 @@ for i in range(12):
             time_steps,
             np.array(tracked_robot_states[model])[:, i],
             label=f"{model}"[20:40],
-            color=color,
+            # color=color,
         )
         color = "red"
 
@@ -397,7 +398,7 @@ for i in range(12):
             time_steps,
             np.array(tracked_human_states[model])[:, i],
             label=f"{model}"[20:40],
-            color=color,
+            # color=color,
         )
         color = "red"
 
