@@ -4,7 +4,7 @@ import omegaconf
 
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletEnv
-from limb_repo.structs import Action, LimbRepoState
+from limb_repo.structs import Action, LimbRepoEEState, LimbRepoState
 
 
 class PyBulletDynamics(BaseDynamics):
@@ -12,9 +12,8 @@ class PyBulletDynamics(BaseDynamics):
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
         """Initialize the dynamics model."""
+        super().__init__(config)
         self.env = LimbRepoPyBulletEnv(config=config)
-        self.dt = self.env.dt
-        self.current_state = self.env.get_limb_repo_state()
 
         # Set the grasp constraint in sim
         self.env.set_limb_repo_constraint()
@@ -27,6 +26,10 @@ class PyBulletDynamics(BaseDynamics):
         """Get the state of the dynamics model."""
         return self.env.get_limb_repo_state()
 
-    def set_state(self, state, set_vel=True):
+    def get_ee_state(self) -> LimbRepoEEState:
+        """Get the state of the end effector."""
+        return self.env.get_limb_repo_ee_state()
+
+    def set_state(self, state) -> None:
         """Set the state of the dynamics model."""
-        return self.env.set_limb_repo_state(state, set_vel)
+        self.env.set_limb_repo_state(state)

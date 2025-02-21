@@ -11,7 +11,13 @@ from limb_repo.environments.pybullet_env import (
     PyBulletConfig,
     PyBulletEnv,
 )
-from limb_repo.structs import BodyState, LimbRepoEEState, LimbRepoState, Pose
+from limb_repo.structs import (
+    BodyState,
+    JointState,
+    LimbRepoEEState,
+    LimbRepoState,
+    Pose,
+)
 from limb_repo.utils import pybullet_utils
 
 
@@ -23,6 +29,8 @@ class LimbRepoPyBulletConfig:
     active_base_pose: Pose
     active_q: np.ndarray
     active_urdf: str
+    active_joint_max: JointState
+    active_joint_min: JointState
     passive_base_pose: Pose
     passive_q: np.ndarray
     passive_urdf: str
@@ -42,28 +50,30 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
 
         ## Set initial values
         self._active_urdf: str = self.config.active_urdf
-        self._active_init_base_pose = np.array(self.config.active_base_pose)
-        self._active_init_base_pos = np.array(self._active_init_base_pose[:3])
-        self._active_init_base_orn = R.from_euler(
-            "xyz", self._active_init_base_pose[3:]
-        )
+        self.active_init_base_pose = np.array(self.config.active_base_pose)
+        self._active_init_base_pos = np.array(self.active_init_base_pose[:3])
+        self._active_init_base_orn = R.from_quat(self.active_init_base_pose[3:])
         self._active_init_q = np.array(self.config.active_q)
         self._active_init_state = BodyState(
             np.concatenate([self._active_init_q, np.zeros(6)])
         )
-        self._active_n_dofs = len(self._active_init_q)
+        self.active_n_dofs = len(self._active_init_q)
+        self.active_joint_max = np.array(self.config.active_joint_max)
+        self.active_joint_min = np.array(self.config.active_joint_min)
 
         self._passive_urdf: str = self.config.passive_urdf
-        self._passive_init_base_pose = np.array(self.config.passive_base_pose)
-        self._passive_init_base_pos = np.array(self._passive_init_base_pose[:3])
-        self._passive_init_base_orn = R.from_euler(
-            "xyz", self._passive_init_base_pose[3:]
-        )
+        self.passive_init_base_pose = np.array(self.config.passive_base_pose)
+        self._passive_init_base_pos = np.array(self.passive_init_base_pose[:3])
+        self._passive_init_base_orn = R.from_quat(self.passive_init_base_pose[3:])
         self._passive_init_q = np.array(self.config.passive_q)
         self._passive_init_state = BodyState(
             np.concatenate([self._passive_init_q, np.zeros(6)])
         )
-        self._passive_n_dofs = len(self._passive_init_q)
+        self.passive_n_dofs = len(self._passive_init_q)
+
+        self.init_limb_repo_state = LimbRepoState(
+            np.concatenate([self._active_init_state, self._passive_init_state])
+        )
 
         self._prev_active_q = self._active_init_q
         self._prev_passive_q = self._passive_init_q
@@ -229,12 +239,7 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         return LimbRepoState(np.concatenate([active, passive]))
 
     def get_limb_repo_ee_state(self) -> LimbRepoEEState:
-        """Get the states of active and passive ee.
-
-        Returns:
-        active_ee_pos, active_ee_vel, active_ee_orn,
-        passive_ee_pos, passive_ee_vel, passive_ee_orn.
-        """
+        """Get the states of active and passive ee."""
         active_ee_state = self.p.getLinkState(
             self.active_id, self.active_ee_link_id, computeLinkVelocity=1
         )
@@ -243,10 +248,10 @@ class LimbRepoPyBulletEnv(PyBulletEnv):
         )
         active_ee_pos = active_ee_state[0]  # [0] and [4] are the same
         active_ee_vel = active_ee_state[6]
-        active_ee_orn = R.from_quat(active_ee_state[1]).as_matrix()
+        active_ee_orn = active_ee_state[1]
         passive_ee_pos = passive_ee_state[0]
         passive_ee_vel = passive_ee_state[6]
-        passive_ee_orn = R.from_quat(passive_ee_state[1]).as_matrix()
+        passive_ee_orn = passive_ee_state[1]
 
         return LimbRepoEEState(
             active_ee_pos,

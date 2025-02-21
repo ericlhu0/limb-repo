@@ -1,17 +1,19 @@
 ### Simulation Params
 pybullet_config:
-  use_gui: True
+  use_gui: False
   real_time_simulation: False
   gravity: [0.0, 0.0, 0.0] # [0.0, 0.0, -9.81]
   dt: 0.005
 
 ### Limb Repo Params
-active_base_pose: [0.8, -0.1, 0.5, 0, 0, 3.1415926535897932384626433] # x y z, euler x y z
-active_q: [-0.32841343,  0.28639087, -1.99012555, -1.88232461,  1.32335729, -0.00612142]
+active_base_pose: [0.8, -0.1, 0.5, 0, 0, 1, 0] # x y z, euler x y z
+active_q: [-0.3300895245463057, 0.2871190864109421, -1.9916400200821813, -1.8802333718885293 ,1.325878888779455, -0.0026746979715505863]
 active_urdf: "assets/urdf/franka6/panda.urdf"
+active_joint_max: [2.8973, 1.7628, -0.0698, 2.8973, 3.7525, 2.8973] # all joints (with 3rd joint (1-indexed)): [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973]
+active_joint_min: [-2.8973, -1.7628, -3.0718, -2.8973, -0.0175, -2.8973] # [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973]
 
-passive_base_pose: [0.15, 0.1, 1.4, 3.1415926535897932384626433, 0, 0] # x y z, euler x y z
-passive_q: [-2.89089697, -0.9754231 , -2.08760543, -1.08786023,  0.14448669, -0.26559232]
+passive_base_pose: [0.15, 0.1, 1.4, 1, 0, 0, 0] # x y z, euler x y z
+passive_q: [-2.9027486923560044, -0.9849741519244208, -2.0972553539469767, -1.1060104513211237, 0.15112502182824744, -0.2675959607395342]
 passive_urdf: "assets/urdf/human_arm/arm_6dof_continuous.urdf"
 # passive_urdf: "assets/urdf/human_arm/arm.urdf" # 4dof
 

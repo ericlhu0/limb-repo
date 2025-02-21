@@ -11,7 +11,8 @@ import numpy as np
 State: TypeAlias = np.ndarray
 Action: TypeAlias = np.ndarray
 Goal: TypeAlias = State
-Pose: TypeAlias = np.ndarray
+Pose: TypeAlias = np.ndarray  # x, y, z, qx, qy, qz, qw
+"""3D Position and Quaternion: x, y, z, qx, qy, qz, qw"""
 
 
 class Task:
@@ -147,6 +148,30 @@ class LimbRepoState(JointState):
     def passive_qd(self):
         """Get passive velocity."""
         return self[self.passive_qd_slice]
+
+    # @property
+    # def active_slice(self):
+    #     return self.active_slice
+
+    # @property
+    # def active_q_slice(self):
+    #     return self.active_q_slice
+
+    # @property
+    # def active_qd_slice(self):
+    #     return self.active_qd_slice
+
+    # @property
+    # def passive_slice(self):
+    #     return self.passive_slice
+
+    # @property
+    # def passive_q_slice(self):
+    #     return self.passive_q_slice
+
+    # @property
+    # def passive_qd_slice(self):
+    #     return self.passive_qd_slice
 
 
 @dataclass

@@ -2,6 +2,16 @@
 .python-version
 multirun/
 outputs/
+playground/out/
+_out/
+_the_good_stuff/
+_figs/
+_weights/
+out/
+wandb/
+*.pth
+
+*.isorted
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

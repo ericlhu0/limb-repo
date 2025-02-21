@@ -1,6 +1,7 @@
 """Check if end-effector pos, vel and orn of active and passive match."""
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from limb_repo.structs import LimbRepoEEState
 
@@ -9,14 +10,14 @@ def check_ee_kinematics(
     limb_repo_ee_state: LimbRepoEEState,
     active_ee_to_passive_ee: np.ndarray,
     debug=False,
-):
+) -> bool:
     """Check if end-effector pos, vel and orn of active and passive match."""
     active_ee_pos = limb_repo_ee_state.active_ee_pos
     active_ee_vel = limb_repo_ee_state.active_ee_vel
-    active_ee_orn = limb_repo_ee_state.active_ee_orn
+    active_ee_orn = R.from_quat(limb_repo_ee_state.active_ee_orn).as_matrix()
     passive_ee_pos = limb_repo_ee_state.passive_ee_pos
     passive_ee_vel = limb_repo_ee_state.passive_ee_vel
-    passive_ee_orn = limb_repo_ee_state.passive_ee_orn
+    passive_ee_orn = R.from_quat(limb_repo_ee_state.passive_ee_orn).as_matrix()
 
     position_check = np.allclose(active_ee_pos, passive_ee_pos, atol=0.01)
     velocity_check = np.allclose(active_ee_vel, passive_ee_vel, atol=0.01)

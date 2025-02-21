@@ -1,6 +1,4 @@
-"""Math Dynamics Base Class."""
-
-import abc
+"""Dynamics Model Using Math Formulation With N Vector."""
 
 import numpy as np
 import omegaconf
@@ -13,12 +11,12 @@ from limb_repo.structs import Action, JointState, LimbRepoEEState, LimbRepoState
 from limb_repo.utils import pinocchio_utils
 
 
-class BaseMathDynamics(BaseDynamics):
-    """Base Dynamics Model."""
+class MathDynamics(BaseDynamics):
+    """Dynamics Model Using Math Formulation With N Vector."""
 
     def __init__(self, config: omegaconf.DictConfig) -> None:
-        # config.pybullet_config.use_gui = False
         super().__init__(config)
+
         self.env = LimbRepoPyBulletEnv(config=config)
         self.dt = self.env.dt
         self.current_state = self.env.get_limb_repo_state()
@@ -33,39 +31,92 @@ class BaseMathDynamics(BaseDynamics):
         self.passive_data = self.passive_model.createData()
         self.passive_model.gravity.linear = np.array(config.pybullet_config.gravity)
 
-    @abc.abstractmethod
+        self.R = self.env.active_base_to_passive_base_twist
+
+        self.q_a_i = self.current_state.active_q
+        self.qd_a_i = self.current_state.active_qd
+        self.q_p_i = self.current_state.passive_q
+        self.qd_p_i = self.current_state.passive_qd
+
     def step(self, torques: Action) -> LimbRepoState:
         """Step the dynamics model."""
-        raise NotImplementedError()
+        current_state = self.current_state
+        self.q_a_i = current_state.active_q
+        self.qd_a_i = current_state.active_qd
+        self.q_p_i = current_state.passive_q
+        self.qd_p_i = current_state.passive_qd
 
-    # pylint: disable=too-many-positional-arguments
-    def apply_active_acceleration(
-        self,
-        qdd_a: np.ndarray,
-        q_a_i: np.ndarray,
-        qd_a_i: np.ndarray,
-        q_p_i: np.ndarray,
-        Jr: np.ndarray,
-        Jhinv: np.ndarray,
-        R: np.ndarray,
-    ) -> LimbRepoState:
-        """Apply active acceleration to the environment."""
+        assert np.allclose(self.R, self.R.T)
+        assert np.allclose(self.R, np.linalg.pinv(self.R))
 
-        qd_a = qd_a_i + qdd_a * self.dt
-        qd_p = Jhinv @ R @ Jr @ qd_a
+        Jr = self.calculate_jacobian(
+            self.env.p, self.env.active_id, self.env.active_ee_link_id, self.q_a_i
+        )
+        Mr = self.calculate_mass_matrix(self.active_model, self.active_data, self.q_a_i)
+        gr = self.calculate_gravity_vector(
+            self.active_model, self.active_data, self.q_a_i
+        )
+        Cr = self.calculate_coriolis_matrix(
+            self.active_model, self.active_data, self.q_a_i, self.qd_a_i
+        )
 
-        q_a = q_a_i + qd_a * self.dt
-        q_p = q_p_i + qd_p * self.dt
+        Jh = self.calculate_jacobian(
+            self.env.p, self.env.passive_id, self.env.passive_ee_link_id, self.q_p_i
+        )
+        Jhinv = np.linalg.pinv(Jh)
+        Mh = self.calculate_mass_matrix(
+            self.passive_model, self.passive_data, self.q_p_i
+        )
+        gh = self.calculate_gravity_vector(
+            self.passive_model, self.passive_data, self.q_p_i
+        )
+        Ch = self.calculate_coriolis_matrix(
+            self.passive_model, self.passive_data, self.q_p_i, self.qd_p_i
+        )
+
+        term1 = np.linalg.pinv(
+            Jr.T
+            @ self.R
+            @ np.linalg.pinv(Jh.T)
+            @ (Mh + (Ch * self.dt))
+            @ Jhinv
+            @ self.R
+            @ Jr
+            + Mr
+            + Cr * self.dt
+        )
+
+        term2 = (
+            torques
+            - Jr.T
+            @ self.R
+            @ np.linalg.pinv(Jh.T)
+            @ (
+                (((Mh * (1 / self.dt)) + Ch) @ Jhinv @ self.R @ Jr @ self.qd_a_i)
+                - ((Mh * (1 / self.dt)) @ self.qd_p_i + gh)
+            )
+            - Cr @ self.qd_a_i
+            - gr
+        )
+
+        qdd_a = term1 @ term2
+
+        qd_a = self.qd_a_i + qdd_a * self.dt
+        qd_p = Jhinv @ self.R @ Jr @ qd_a
+
+        q_a = self.q_a_i + qd_a * self.dt
+        q_p = self.q_p_i + qd_p * self.dt
 
         resulting_state = LimbRepoState(np.concatenate([q_a, qd_a, q_p, qd_p]))
 
+        self.current_state = resulting_state
         self.env.set_limb_repo_state(resulting_state)
 
-        return resulting_state
+        return self.current_state
 
     def get_state(self) -> LimbRepoState:
         """Get the state of the dynamics model."""
-        return self.env.get_limb_repo_state()
+        return self.current_state
 
     def get_ee_state(self) -> LimbRepoEEState:
         """Get the state of the dynamics model."""

@@ -7,29 +7,31 @@ name = "limb_repo"
 version = "0.1.0"
 description = "Limb Repositioning Research Project."
 readme = "README.md"
-requires-python = "<3.11"
+requires-python = ">=3.10"
 dependencies = [
    "matplotlib",
    "numpy<2.0",
-   "pandas",
-   "pandas-stubs",
+   "pandas<1.5",
+   "pandas-stubs<1.5",
    "hydra-core",
    "omegaconf",
-   "tomsutils@git+https://github.com/tomsilver/toms-utils.git",
+   "pybullet_helpers@git+https://github.com/ericlhu0/pybullet-helpers",
    "pybullet",
-   "scipy==1.14.1",
-   "pin"
+   "pin",
+   "h5py",
+   "wandb",
+   "torch"
 ]
 
 [project.optional-dependencies]
 develop = [
-    "black",
-    "docformatter",
+    "black<24.11",
+    "docformatter<1.8",
     "isort",
-    "mypy",
-    "pylint>=2.14.5",
+    "mypy<1.15",
+    "pylint>=2.14.5,<3.4",
     "pytest-pylint>=0.18.0",
-    "pytest>=7.2.2",
+    "pytest>=7.2.2,<8.4",
 ]
 
 [tool.setuptools.packages.find]

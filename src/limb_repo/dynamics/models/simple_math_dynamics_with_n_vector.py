@@ -6,7 +6,7 @@ from limb_repo.dynamics.models.base_math_dynamics import BaseMathDynamics
 from limb_repo.structs import Action, JointState, LimbRepoState
 
 
-class MathDynamicsWithNVector(BaseMathDynamics):
+class SimpleMathDynamicsWithNVector(BaseMathDynamics):
     """Dynamics Model Using Math Formulation With N Vector."""
 
     def step(self, torques: Action) -> LimbRepoState:
@@ -44,14 +44,7 @@ class MathDynamicsWithNVector(BaseMathDynamics):
         Nh = Ch @ qd_p_i + gh
 
         qdd_a = np.linalg.pinv((Jhinv @ R @ -Jr).T @ Mh @ (Jhinv @ R @ Jr) - Mr) @ (
-            (Jhinv @ R @ Jr).T
-            @ (
-                Mh * (1 / self.dt) @ (Jhinv @ R @ Jr) @ qd_a_i
-                - Mh * (1 / self.dt) @ qd_p_i
-                + Nh
-            )
-            + Nr
-            - np.array(torques)
+            (Jhinv @ R @ Jr).T @ Nh + Nr - np.array(torques)
         )
 
         self.current_state = self.apply_active_acceleration(

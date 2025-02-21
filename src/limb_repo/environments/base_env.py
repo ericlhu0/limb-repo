@@ -2,7 +2,7 @@
 
 import abc
 
-from limb_repo.structs import LimbRepoState
+from limb_repo.structs import LimbRepoEEState, LimbRepoState
 
 
 class BaseEnv(abc.ABC):
@@ -11,6 +11,10 @@ class BaseEnv(abc.ABC):
     @abc.abstractmethod
     def get_limb_repo_state(self) -> LimbRepoState:
         """Get the state of the active and passive arm."""
+
+    @abc.abstractmethod
+    def get_limb_repo_ee_state(self) -> LimbRepoEEState:
+        """Get the states of active and passive ee."""
 
     @abc.abstractmethod
     def set_limb_repo_state(self, state: LimbRepoState) -> None:

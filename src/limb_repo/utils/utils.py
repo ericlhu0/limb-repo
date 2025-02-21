@@ -1,21 +1,17 @@
 """Utility functions."""
 
-import os
-from typing import Type, TypeVar
+from typing import Optional, Type, TypeVar
 
+import numpy as np
 import omegaconf
+import pybullet_helpers
+import pybullet_helpers.inverse_kinematics
 from omegaconf import OmegaConf
+from pybullet_helpers.inverse_kinematics import InverseKinematicsError
+from pybullet_helpers.robots.single_arm import SingleArmPyBulletRobot
+from scipy.spatial.transform import Rotation as R
 
-
-def get_root_path() -> str:
-    """Get the root path of the repository."""
-    return os.path.abspath(os.path.join(__file__, "../../../.."))
-
-
-def to_abs_path(input_path: str) -> str:
-    """Get the absolute path of the repository."""
-    return os.path.abspath(os.path.join(get_root_path(), input_path))
-
+from limb_repo.structs import JointState, Pose
 
 T = TypeVar("T")
 
@@ -30,3 +26,39 @@ def parse_config(path_to_yaml: str, config_class: Type[T]) -> omegaconf.DictConf
     config = OmegaConf.structured(config_class(**config_dict))
     assert isinstance(config, omegaconf.DictConfig)
     return config
+
+
+def inverse_kinematics(
+    robot: SingleArmPyBulletRobot,
+    world_frame_passive_ee_goal_pose: Pose,
+    world_frame_passive_base_pose: Pose,
+) -> Optional[JointState]:
+    """IK using pybullet_helpers."""
+
+    world_frame_passive_ee_goal_pos = world_frame_passive_ee_goal_pose[:3]
+    world_frame_passive_ee_goal_orn = R.from_quat(world_frame_passive_ee_goal_pose[3:])
+    world_frame_passive_base_pos = world_frame_passive_base_pose[:3]
+    world_frame_passive_base_orn = R.from_quat(world_frame_passive_base_pose[3:])
+
+    base_frame_passive_ee_goal_pos = tuple(
+        world_frame_passive_base_orn.inv().apply(
+            world_frame_passive_ee_goal_pos - world_frame_passive_base_pos
+        )
+    )
+    base_frame_passive_ee_goal_orn = tuple(
+        R.as_quat(world_frame_passive_base_orn * world_frame_passive_ee_goal_orn)
+    )
+    base_frame_passive_ee_goal_pose = pybullet_helpers.geometry.Pose(
+        base_frame_passive_ee_goal_pos, base_frame_passive_ee_goal_orn
+    )
+
+    try:
+        joint_positions = np.array(
+            pybullet_helpers.inverse_kinematics.inverse_kinematics(
+                robot, base_frame_passive_ee_goal_pose
+            )
+        )
+    except InverseKinematicsError:
+        return None  # Return None if IK fails
+
+    return joint_positions  # Return joint positions if successful
