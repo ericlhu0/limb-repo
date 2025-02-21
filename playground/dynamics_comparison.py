@@ -342,13 +342,13 @@ models: List[BaseDynamics] = [
     # LearnedDynamics(parsed_config, nn_config_5123, "_weights/10M_fullrun_2025-01-16_03-24-03/10M_fullrun_2025-01-16_03-24-03model_weights_499.pth", n_lin_in2, dn_tanh),
     # LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_179.pth", n_lin_in2, dn_tanh),
     # LearnedDynamics(parsed_config, nn_config_5124, "_weights/10M_512^4_fullrun_2025-01-16_12-13-56/model_weights_269.pth", n_lin_in2, dn_tanh),
-    # LearnedDynamics(
-    #     parsed_config,
-    #     nn_config_1024_2048,
-    #     "_weights/1024-2048-3std_2025-01-16_23-23-22/model_weights_499.pth",
-    #     n_lin_in3,
-    #     dn_tanh,
-    # ),
+    LearnedDynamics(
+        parsed_config,
+        nn_config_1024_2048,
+        "_weights/1024-2048-3std_2025-01-16_23-23-22/model_weights_499.pth",
+        n_lin_in3,
+        dn_tanh,
+    ),
 ]
 
 tracked_robot_states: dict[BaseDynamics, Any] = {}

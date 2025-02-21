@@ -6,11 +6,11 @@ import shutil
 import time
 
 import torch
+import wandb
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-import wandb
 from limb_repo.dynamics.models.learned_dynamics import (
     NeuralNetworkConfig,
     PyTorchLearnedDynamicsModel,
