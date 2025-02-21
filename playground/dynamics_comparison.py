@@ -13,7 +13,6 @@ from limb_repo.dynamics.models.learned_dynamics import (
     NeuralNetworkConfig,
 )
 from limb_repo.dynamics.models.math_dynamics import MathDynamics
-
 from limb_repo.dynamics.models.pybullet_dynamics import PyBulletDynamics
 from limb_repo.environments.limb_repo_pybullet_env import LimbRepoPyBulletConfig
 from limb_repo.utils import utils
@@ -294,6 +293,7 @@ def denormalize_fn_lin(
 
 def denormalize_fn_tanh(scaling: int) -> Callable[[torch.Tensor], torch.Tensor]:
     """Return a tanh denormalization function."""
+
     def _denormalize_fn_tanh(x: torch.Tensor) -> torch.Tensor:
         x[x > 1] = 0.9999
         x[x < -1] = -0.9999

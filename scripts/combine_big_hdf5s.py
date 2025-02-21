@@ -1,4 +1,4 @@
-"""Combine hdf5s that each have many datapoints"""
+"""Combine hdf5s that each have many datapoints."""
 
 import h5py
 import numpy as np
@@ -19,7 +19,7 @@ def combine_hdf5_files(in_files: list[str], out_files: str):
     with h5py.File(out_files, "w") as combined_file:
         for _, file_name in enumerate(in_files):
             with h5py.File(file_name, "r") as h5_file:
-                for key in h5_file.keys(): # pylint: disable=consider-using-dict-items
+                for key in h5_file.keys():  # pylint: disable=consider-using-dict-items
                     # Check if dataset or group already exists
                     if key not in combined_file:
                         # If it's the first file, create datasets/groups

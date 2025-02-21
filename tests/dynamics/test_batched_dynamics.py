@@ -112,6 +112,7 @@ def normalize_fn_lin(
 
 def batched_denormalize_fn_tanh(scaling: int) -> Callable[[torch.Tensor], torch.Tensor]:
     """Return a function that denormalizes input data using tanh."""
+
     def _denormalize_fn_tanh(x: torch.Tensor) -> torch.Tensor:
         x[x > 1] = 0.9999
         x[x < -1] = -0.9999
@@ -126,7 +127,7 @@ batch_size = 25
 dynamics = BatchedLearnedDynamics(
     parsed_config,
     nn_config,
-    "tests/dynamics/assets/test-weights.pth",
+    "tests/dynamics/assets/test-weights.weights",
     normalize_fn_lin(min_features, max_features),
     batched_denormalize_fn_tanh(8),
     batch_size=batch_size,
@@ -171,7 +172,8 @@ def test_batched_size():
 
 
 def test_batched_vs_nonbatched():
-    """Test that each batch element matches the non-batched model for 5 steps."""
+    """Test that each batch element matches the non-batched model for 5
+    steps."""
     # Parse configuration.
 
     # Instantiate the models.

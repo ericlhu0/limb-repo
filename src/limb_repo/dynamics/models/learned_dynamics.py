@@ -11,9 +11,11 @@ from torch import nn
 from limb_repo.dynamics.models.base_dynamics import BaseDynamics
 from limb_repo.structs import Action, LimbRepoEEState, LimbRepoState
 
+
 @dataclass
 class NeuralNetworkConfig:
     """Configuration for a neural network."""
+
     input_size: int
     hidden_layers: list[int]
     output_size: int
@@ -22,6 +24,7 @@ class NeuralNetworkConfig:
 
 class PyTorchLearnedDynamicsModel(nn.Module):
     """PyTorch neural network model for learned dynamics."""
+
     def __init__(self, nn_config: omegaconf.DictConfig) -> None:
         super().__init__()
 

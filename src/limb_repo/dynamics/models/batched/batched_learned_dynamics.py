@@ -13,6 +13,7 @@ from limb_repo.dynamics.models.batched.base_batched_dynamics import BaseBatchedD
 @dataclass
 class NeuralNetworkConfig:
     """Configuration for a neural network."""
+
     input_size: int
     hidden_layers: list[int]
     output_size: int
@@ -21,6 +22,7 @@ class NeuralNetworkConfig:
 
 class BatchedLearnedDynamicsModel(nn.Module):
     """Batched neural network model for learned dynamics."""
+
     def __init__(self, nn_config: omegaconf.DictConfig) -> None:
         super().__init__()
 
@@ -152,6 +154,4 @@ class BatchedLearnedDynamics(BaseBatchedDynamics):
         self.q_p_batch = state_batch[
             :, 2 * self.active_n_dofs : 2 * self.active_n_dofs + self.passive_n_dofs
         ]
-        self.qd_p_batch = state_batch[
-            :, 2 * self.active_n_dofs + self.passive_n_dofs :
-        ]
+        self.qd_p_batch = state_batch[:, 2 * self.active_n_dofs + self.passive_n_dofs :]
